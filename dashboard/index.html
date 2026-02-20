@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="3600">
+    <title>Rohstoff-Dashboard - Musswessels</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            /* Musswessels CI: Schwarz für TV/Monitor */
+            background: #000000;
+            height: 100vh;
+            padding: 15px;
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px;
+        }
+        
+        header h1 {
+            font-size: 22px;
+            font-weight: 300;
+            margin: 0;
+            color: #fff;
+        }
+        
+        header .updated {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .period-select select {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            color: #fff;
+            padding: 6px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+        }
+        
+        .period-select select:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        
+        .period-select select option {
+            background: #8b0015;
+            color: #fff;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 15px;
+            height: calc(100vh - 100px);
+            width: 100%;
+            max-width: none;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            padding: 15px 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(179, 0, 25, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        
+        .card-title {
+            font-size: 22px;
+            font-weight: 600;
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+        
+        .card-title .source {
+            font-size: 10px;
+            font-weight: 400;
+            opacity: 0.6;
+        }
+        
+        .card-price {
+            text-align: right;
+        }
+        
+        .card-price .current {
+            font-size: 22px;
+            font-weight: 700;
+        }
+        
+        .card-price .unit {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+        
+        .card-price .change {
+            font-size: 13px;
+            margin-top: 2px;
+        }
+        
+        .change.up { color: #a8e6a3; }
+        .change.down { color: #ffb3b3; }
+        
+        .chart-container {
+            flex: 1;
+            position: relative;
+            min-height: 150px;
+        }
+        
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            margin-top: 8px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            opacity: 0.6;
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-value {
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+        
+        .stat-value.min { color: #ffb3b3; }
+        .stat-value.max { color: #a8e6a3; }
+        .stat-value.avg { color: #ffd699; }
+        
+        /* Musswessels-Farben für die Rohstoffe - Rot */
+        .card.weizen { border-left: 4px solid #b30019; }
+        .card.zucker { border-left: 4px solid #d4001f; }
+        .card.kaffee { border-left: 4px solid #b30019; }
+        .card.butter { border-left: 4px solid #d4001f; }
+        
+        footer {
+            display: none;
+        }
+        
+        @media (max-width: 900px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                grid-template-rows: repeat(4, 1fr);
+            }
+        }
+        
+        /* Landscape TV Optimierung */
+        @media (min-aspect-ratio: 16/9) {
+            body { padding: 10px 20px; }
+            .dashboard { gap: 12px; height: calc(100vh - 70px); }
+            header { margin-bottom: 8px; }
+            .card { padding: 12px 15px; }
+            .card-header { margin-bottom: 6px; }
+            .stats-row { padding-top: 8px; margin-top: 6px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="period-select">
+            <select id="periodSelect">
+                <option value="1w">1 Woche</option>
+                <option value="1m">1 Monat</option>
+                <option value="3m" selected>3 Monate</option>
+            </select>
+        </div>
+        <div class="updated" id="lastUpdate">Wird geladen...</div>
+    </header>
+    
+    <div class="dashboard">
+        <div class="card weizen">
+            <div class="card-header">
+                <div class="card-title">Weizen<span class="source">Yahoo Finance</span></div>
+                <div class="card-price">
+                    <div class="current" id="weizen-price">--</div>
+                    <div class="unit" id="weizen-unit">EUR/t</div>
+                    <div class="change" id="weizen-change">--</div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="weizen-chart"></canvas>
+            </div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-label">Min</div>
+                    <div class="stat-value min" id="weizen-min">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Durchschnitt</div>
+                    <div class="stat-value avg" id="weizen-avg">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Max</div>
+                    <div class="stat-value max" id="weizen-max">--</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card zucker">
+            <div class="card-header">
+                <div class="card-title">Zucker<span class="source">Yahoo Finance</span></div>
+                <div class="card-price">
+                    <div class="current" id="zucker-price">--</div>
+                    <div class="unit" id="zucker-unit">EUR/t</div>
+                    <div class="change" id="zucker-change">--</div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="zucker-chart"></canvas>
+            </div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-label">Min</div>
+                    <div class="stat-value min" id="zucker-min">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Durchschnitt</div>
+                    <div class="stat-value avg" id="zucker-avg">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Max</div>
+                    <div class="stat-value max" id="zucker-max">--</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card kaffee">
+            <div class="card-header">
+                <div class="card-title">Kaffee<span class="source">Yahoo Finance</span></div>
+                <div class="card-price">
+                    <div class="current" id="kaffee-price">--</div>
+                    <div class="unit" id="kaffee-unit">EUR/t</div>
+                    <div class="change" id="kaffee-change">--</div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="kaffee-chart"></canvas>
+            </div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-label">Min</div>
+                    <div class="stat-value min" id="kaffee-min">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Durchschnitt</div>
+                    <div class="stat-value avg" id="kaffee-avg">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Max</div>
+                    <div class="stat-value max" id="kaffee-max">--</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card butter">
+            <div class="card-header">
+                <div class="card-title">Butter<span class="source">CLAL.it Kempten</span></div>
+                <div class="card-price">
+                    <div class="current" id="butter-price">--</div>
+                    <div class="unit" id="butter-unit">EUR/t</div>
+                    <div class="change" id="butter-change">--</div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="butter-chart"></canvas>
+            </div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-label">Min</div>
+                    <div class="stat-value min" id="butter-min">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Durchschnitt</div>
+                    <div class="stat-value avg" id="butter-avg">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Max</div>
+                    <div class="stat-value max" id="butter-max">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const PERIODS = {
+            '1w': { label: '1 Woche', days: 7 },
+            '1m': { label: '1 Monat', days: 30 },
+            '3m': { label: '3 Monate', days: 90 }
+        };
+        
+        let currentPeriod = '3m';
+        let allData = {};
+        
+        // Musswessels CI-Farben für Charts - Rot transparent
+        const COLORS = {
+            weizen: { line: 'rgba(179, 0, 25, 0.9)', bg: 'rgba(179, 0, 25, 0.2)' },
+            zucker: { line: 'rgba(212, 0, 31, 0.9)', bg: 'rgba(212, 0, 31, 0.2)' },
+            kaffee: { line: 'rgba(179, 0, 25, 0.8)', bg: 'rgba(179, 0, 25, 0.15)' },
+            butter: { line: 'rgba(212, 0, 31, 0.8)', bg: 'rgba(212, 0, 31, 0.15)' }
+        };
+        
+        const charts = {};
+        
+        function formatPrice(price, withSymbol = true) {
+            const formatted = price.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return withSymbol ? '€ ' + formatted : formatted;
+        }
+        
+        function createChart(canvasId, commodity) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            const color = COLORS[commodity];
+            
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: commodity,
+                        data: [],
+                        borderColor: color.line,
+                        backgroundColor: color.bg,
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return formatPrice(context.raw) + '/t';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { 
+                                color: 'rgba(255,255,255,0.7)',
+                                maxTicksLimit: 6,
+                                font: { size: 10 }
+                            }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { 
+                                color: 'rgba(255,255,255,0.7)',
+                                font: { size: 10 },
+                                callback: function(value) {
+                                    return formatPrice(value, false);
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+        }
+        
+        function filterByPeriod(prices, period) {
+            const days = PERIODS[period]?.days || 90;
+            return prices.slice(-days);
+        }
+        
+        function calculateStats(prices) {
+            const values = prices.map(p => p.price);
+            return {
+                min: Math.min(...values),
+                max: Math.max(...values),
+                avg: values.reduce((a, b) => a + b, 0) / values.length
+            };
+        }
+        
+        function updateChart(commodity, data, period = currentPeriod) {
+            if (!data || !data.prices || data.prices.length === 0) return;
+            
+            allData[commodity] = data;
+            
+            const chart = charts[commodity];
+            const prices = filterByPeriod(data.prices, period);
+            
+            chart.data.labels = prices.map(p => {
+                const d = new Date(p.date);
+                return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+            });
+            chart.data.datasets[0].data = prices.map(p => p.price);
+            chart.update('none');
+            
+            const current = prices[prices.length - 1].price;
+            const first = prices[0].price;
+            const change = ((current - first) / first * 100).toFixed(1);
+            
+            document.getElementById(`${commodity}-price`).textContent = formatPrice(current);
+            document.getElementById(`${commodity}-unit`).textContent = data.unit || 'EUR/t';
+            
+            const changeEl = document.getElementById(`${commodity}-change`);
+            const periodLabel = PERIODS[currentPeriod]?.label || '3M';
+            if (change >= 0) {
+                changeEl.textContent = `+${change}% (${periodLabel})`;
+                changeEl.className = 'change up';
+            } else {
+                changeEl.textContent = `${change}% (${periodLabel})`;
+                changeEl.className = 'change down';
+            }
+            
+            const stats = calculateStats(prices);
+            document.getElementById(`${commodity}-min`).textContent = formatPrice(stats.min);
+            document.getElementById(`${commodity}-max`).textContent = formatPrice(stats.max);
+            document.getElementById(`${commodity}-avg`).textContent = formatPrice(stats.avg);
+        }
+        
+        function updateAllCharts() {
+            for (const [c, data] of Object.entries(allData)) {
+                updateChart(c, data, currentPeriod);
+            }
+        }
+        
+        async function loadData() {
+            const commodities = ['weizen', 'zucker', 'kaffee', 'butter'];
+            let latestUpdate = null;
+            
+            for (const c of commodities) {
+                try {
+                    const response = await fetch(`../data/${c}.json`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        updateChart(c, data);
+                        
+                        if (data.updated) {
+                            const updateDate = new Date(data.updated);
+                            if (!latestUpdate || updateDate > latestUpdate) {
+                                latestUpdate = updateDate;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error(`Fehler beim Laden von ${c}:`, e);
+                }
+            }
+            
+            if (latestUpdate) {
+                document.getElementById('lastUpdate').textContent = 
+                    `Stand: ${latestUpdate.toLocaleDateString('de-DE')} ${latestUpdate.toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})}`;
+            }
+        }
+        
+        ['weizen', 'zucker', 'kaffee', 'butter'].forEach(c => {
+            charts[c] = createChart(`${c}-chart`, c);
+        });
+        
+        document.getElementById('periodSelect').addEventListener('change', (e) => {
+            currentPeriod = e.target.value;
+            updateAllCharts();
+        });
+        
+        async function loadConfig() {
+            try {
+                const resp = await fetch('../config.json');
+                if (resp.ok) {
+                    const config = await resp.json();
+                    if (config.defaultPeriod && PERIODS[config.defaultPeriod]) {
+                        currentPeriod = config.defaultPeriod;
+                        document.getElementById('periodSelect').value = currentPeriod;
+                    }
+                }
+            } catch (e) {}
+        }
+        
+        loadConfig().then(() => loadData());
+    </script>
+</body>
+</html>

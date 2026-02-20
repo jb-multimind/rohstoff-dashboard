@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="3600">
+    <title>Rohstoff-Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            height: 100vh;
+            padding: 15px;
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px;
+        }
+        
+        header h1 {
+            font-size: 22px;
+            font-weight: 300;
+            margin: 0;
+        }
+        
+        header .updated {
+            font-size: 12px;
+            opacity: 0.6;
+        }
+        
+        .period-select select {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #fff;
+            padding: 6px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+        }
+        
+        .period-select select:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .period-select select option {
+            background: #1a1a2e;
+            color: #fff;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 15px;
+            height: calc(100vh - 100px);
+            width: 100%;
+            max-width: none;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 15px 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+        
+        .card-title .source {
+            font-size: 10px;
+            font-weight: 400;
+            opacity: 0.5;
+        }
+        
+        .card-price {
+            text-align: right;
+        }
+        
+        .card-price .current {
+            font-size: 22px;
+            font-weight: 700;
+        }
+        
+        .card-price .unit {
+            font-size: 11px;
+            opacity: 0.6;
+        }
+        
+        .card-price .change {
+            font-size: 13px;
+            margin-top: 2px;
+        }
+        
+        .change.up { color: #4ade80; }
+        .change.down { color: #f87171; }
+        
+        .chart-container {
+            flex: 1;
+            position: relative;
+            min-height: 150px;
+        }
+        
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 8px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            opacity: 0.5;
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-value {
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+        
+        .stat-value.min { color: #f87171; }
+        .stat-value.max { color: #4ade80; }
+        .stat-value.avg { color: #fbbf24; }
+        
+        /* Farben für die Rohstoffe */
+        .card.weizen { border-left: 4px solid #f59e0b; }
+        .card.zucker { border-left: 4px solid #ec4899; }
+        .card.kaffee { border-left: 4px solid #8b5cf6; }
+        .card.butter { border-left: 4px solid #06b6d4; }
+        
+        footer {
+            display: none;
+        }
+        
+        @media (max-width: 900px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                grid-template-rows: repeat(4, 1fr);
+            }
+        }
+        
+        /* Landscape TV Optimierung */
+        @media (min-aspect-ratio: 16/9) {
+            body { padding: 10px 20px; }
+            .dashboard { gap: 12px; height: calc(100vh - 70px); }
+            header { margin-bottom: 8px; }
+            .card { padding: 12px 15px; }
+            .card-header { margin-bottom: 6px; }
+            .stats-row { padding-top: 8px; margin-top: 6px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="period-select">
+            <select id="periodSelect">
+                <option value="1w">1 Woche</option>
+                <option value="1m">1 Monat</option>
+                <option value="3m" selected>3 Monate</option>
+            </select>
+        </div>
+        <div class="updated" id="lastUpdate">Wird geladen...</div>
+    </header>
+    
+    <div class="dashboard">
+        <div class="card weizen">
+            <div class="card-header">
+                <div class="card-title">Weizen<span class="source">Yahoo Finance</span></div>
+                <div class="card-price">
+                    <div class="current" id="weizen-price">--</div>
+                    <div class="unit" id="weizen-unit">EUR/t</div>
+                    <div class="change" id="weizen-change">--</div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="weizen-chart"></canvas>
+            </div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-label">Min</div>
+                    <div class="stat-value min" id="weizen-min">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Durchschnitt</div>
+                    <div class="stat-value avg" id="weizen-avg">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Max</div>
+                    <div class="stat-value max" id="weizen-max">--</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card zucker">
+            <div class="card-header">
+                <div class="card-title">Zucker<span class="source">Yahoo Finance</span></div>
+                <div class="card-price">
+                    <div class="current" id="zucker-price">--</div>
+                    <div class="unit" id="zucker-unit">EUR/t</div>
+                    <div class="change" id="zucker-change">--</div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="zucker-chart"></canvas>
+            </div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-label">Min</div>
+                    <div class="stat-value min" id="zucker-min">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Durchschnitt</div>
+                    <div class="stat-value avg" id="zucker-avg">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Max</div>
+                    <div class="stat-value max" id="zucker-max">--</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card kaffee">
+            <div class="card-header">
+                <div class="card-title">Kaffee<span class="source">Yahoo Finance</span></div>
+                <div class="card-price">
+                    <div class="current" id="kaffee-price">--</div>
+                    <div class="unit" id="kaffee-unit">EUR/t</div>
+                    <div class="change" id="kaffee-change">--</div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="kaffee-chart"></canvas>
+            </div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-label">Min</div>
+                    <div class="stat-value min" id="kaffee-min">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Durchschnitt</div>
+                    <div class="stat-value avg" id="kaffee-avg">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Max</div>
+                    <div class="stat-value max" id="kaffee-max">--</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card butter">
+            <div class="card-header">
+                <div class="card-title">Butter<span class="source">CLAL.it Kempten</span></div>
+                <div class="card-price">
+                    <div class="current" id="butter-price">--</div>
+                    <div class="unit" id="butter-unit">EUR/t</div>
+                    <div class="change" id="butter-change">--</div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="butter-chart"></canvas>
+            </div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-label">Min</div>
+                    <div class="stat-value min" id="butter-min">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Durchschnitt</div>
+                    <div class="stat-value avg" id="butter-avg">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Max</div>
+                    <div class="stat-value max" id="butter-max">--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const PERIODS = {
+            '1w': { label: '1 Woche', days: 7 },
+            '1m': { label: '1 Monat', days: 30 },
+            '3m': { label: '3 Monate', days: 90 }
+        };
+        
+        let currentPeriod = '3m';
+        let allData = {};
+        
+        const COLORS = {
+            weizen: { line: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)' },
+            zucker: { line: '#ec4899', bg: 'rgba(236, 72, 153, 0.1)' },
+            kaffee: { line: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)' },
+            butter: { line: '#06b6d4', bg: 'rgba(6, 182, 212, 0.1)' }
+        };
+        
+        const charts = {};
+        
+        function formatPrice(price, withSymbol = true) {
+            const formatted = price.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return withSymbol ? '€ ' + formatted : formatted;
+        }
+        
+        function createChart(canvasId, commodity) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            const color = COLORS[commodity];
+            
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: commodity,
+                        data: [],
+                        borderColor: color.line,
+                        backgroundColor: color.bg,
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return formatPrice(context.raw) + '/t';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { 
+                                color: 'rgba(255,255,255,0.5)',
+                                maxTicksLimit: 6,
+                                font: { size: 10 }
+                            }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { 
+                                color: 'rgba(255,255,255,0.5)',
+                                font: { size: 10 },
+                                callback: function(value) {
+                                    return formatPrice(value, false);
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+        }
+        
+        function filterByPeriod(prices, period) {
+            const days = PERIODS[period]?.days || 90;
+            return prices.slice(-days);
+        }
+        
+        function calculateStats(prices) {
+            const values = prices.map(p => p.price);
+            return {
+                min: Math.min(...values),
+                max: Math.max(...values),
+                avg: values.reduce((a, b) => a + b, 0) / values.length
+            };
+        }
+        
+        function updateChart(commodity, data, period = currentPeriod) {
+            if (!data || !data.prices || data.prices.length === 0) return;
+            
+            allData[commodity] = data;
+            
+            const chart = charts[commodity];
+            const prices = filterByPeriod(data.prices, period);
+            
+            // Labels (Datum) und Werte
+            chart.data.labels = prices.map(p => {
+                const d = new Date(p.date);
+                return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+            });
+            chart.data.datasets[0].data = prices.map(p => p.price);
+            chart.update('none');
+            
+            // Aktuellen Preis und Änderung anzeigen
+            const current = prices[prices.length - 1].price;
+            const first = prices[0].price;
+            const change = ((current - first) / first * 100).toFixed(1);
+            
+            document.getElementById(`${commodity}-price`).textContent = formatPrice(current);
+            document.getElementById(`${commodity}-unit`).textContent = data.unit || 'EUR/t';
+            
+            const changeEl = document.getElementById(`${commodity}-change`);
+            const periodLabel = PERIODS[currentPeriod]?.label || '3M';
+            if (change >= 0) {
+                changeEl.textContent = `+${change}% (${periodLabel})`;
+                changeEl.className = 'change up';
+            } else {
+                changeEl.textContent = `${change}% (${periodLabel})`;
+                changeEl.className = 'change down';
+            }
+            
+            // Min/Max/Durchschnitt für den gewählten Zeitraum
+            const stats = calculateStats(prices);
+            document.getElementById(`${commodity}-min`).textContent = formatPrice(stats.min);
+            document.getElementById(`${commodity}-max`).textContent = formatPrice(stats.max);
+            document.getElementById(`${commodity}-avg`).textContent = formatPrice(stats.avg);
+        }
+        
+        function updateAllCharts() {
+            for (const [c, data] of Object.entries(allData)) {
+                updateChart(c, data, currentPeriod);
+            }
+        }
+        
+        const EMBEDDED_DATA = {
+    "weizen": {"commodity": "Weizen", "unit": "EUR/t", "updated": "2026-02-04T20:48:19.100228", "stats": {"min": 219.16, "max": 237.59, "avg": 226.35}, "prices": [{"date": "2025-11-06", "price": 222.69}, {"date": "2025-11-07", "price": 220.91}, {"date": "2025-11-08", "price": 221.93}, {"date": "2025-11-09", "price": 221.29}, {"date": "2025-11-10", "price": 224.12}, {"date": "2025-11-11", "price": 224.4}, {"date": "2025-11-12", "price": 224.85}, {"date": "2025-11-13", "price": 225.84}, {"date": "2025-11-14", "price": 224.13}, {"date": "2025-11-15", "price": 224.97}, {"date": "2025-11-16", "price": 224.49}, {"date": "2025-11-17", "price": 222.8}, {"date": "2025-11-18", "price": 223.69}, {"date": "2025-11-19", "price": 223.63}, {"date": "2025-11-20", "price": 223.97}, {"date": "2025-11-21", "price": 222.31}, {"date": "2025-11-22", "price": 223.91}, {"date": "2025-11-23", "price": 223.31}, {"date": "2025-11-24", "price": 227.18}, {"date": "2025-11-25", "price": 227.01}, {"date": "2025-11-26", "price": 224.59}, {"date": "2025-11-27", "price": 225.63}, {"date": "2025-11-28", "price": 225.22}, {"date": "2025-11-29", "price": 225.28}, {"date": "2025-11-30", "price": 224.7}, {"date": "2025-12-01", "price": 225.64}, {"date": "2025-12-02", "price": 223.62}, {"date": "2025-12-03", "price": 226.61}, {"date": "2025-12-04", "price": 224.95}, {"date": "2025-12-05", "price": 224.77}, {"date": "2025-12-06", "price": 225.48}, {"date": "2025-12-07", "price": 225.69}, {"date": "2025-12-08", "price": 227.09}, {"date": "2025-12-09", "price": 223.3}, {"date": "2025-12-10", "price": 221.46}, {"date": "2025-12-11", "price": 223.14}, {"date": "2025-12-12", "price": 222.69}, {"date": "2025-12-13", "price": 222.47}, {"date": "2025-12-14", "price": 223.37}, {"date": "2025-12-15", "price": 223.06}, {"date": "2025-12-16", "price": 222.51}, {"date": "2025-12-17", "price": 226.05}, {"date": "2025-12-18", "price": 226.08}, {"date": "2025-12-19", "price": 222.86}, {"date": "2025-12-20", "price": 223.42}, {"date": "2025-12-21", "price": 222.65}, {"date": "2025-12-22", "price": 223.09}, {"date": "2025-12-23", "price": 222.92}, {"date": "2025-12-24", "price": 222.5}, {"date": "2025-12-25", "price": 223.8}, {"date": "2025-12-26", "price": 220.52}, {"date": "2025-12-27", "price": 220.1}, {"date": "2025-12-28", "price": 219.16}, {"date": "2025-12-29", "price": 222.42}, {"date": "2025-12-30", "price": 224.38}, {"date": "2025-12-31", "price": 224.02}, {"date": "2026-01-01", "price": 223.38}, {"date": "2026-01-02", "price": 224.47}, {"date": "2026-01-03", "price": 224.16}, {"date": "2026-01-04", "price": 226.23}, {"date": "2026-01-05", "price": 228.12}, {"date": "2026-01-06", "price": 228.5}, {"date": "2026-01-07", "price": 228.32}, {"date": "2026-01-08", "price": 228.3}, {"date": "2026-01-09", "price": 228.05}, {"date": "2026-01-10", "price": 228.15}, {"date": "2026-01-11", "price": 229.77}, {"date": "2026-01-12", "price": 230.23}, {"date": "2026-01-13", "price": 228.95}, {"date": "2026-01-14", "price": 231.19}, {"date": "2026-01-15", "price": 230.46}, {"date": "2026-01-16", "price": 229.94}, {"date": "2026-01-17", "price": 231.21}, {"date": "2026-01-18", "price": 230.9}, {"date": "2026-01-19", "price": 229.32}, {"date": "2026-01-20", "price": 227.73}, {"date": "2026-01-21", "price": 228.71}, {"date": "2026-01-22", "price": 228.25}, {"date": "2026-01-23", "price": 229.84}, {"date": "2026-01-24", "price": 230.57}, {"date": "2026-01-25", "price": 230.85}, {"date": "2026-01-26", "price": 229.66}, {"date": "2026-01-27", "price": 232.27}, {"date": "2026-01-28", "price": 234.25}, {"date": "2026-01-29", "price": 235.25}, {"date": "2026-01-30", "price": 237.41}, {"date": "2026-01-31", "price": 237.59}, {"date": "2026-02-01", "price": 236.78}, {"date": "2026-02-02", "price": 236.89}, {"date": "2026-02-03", "price": 234.77}, {"date": "2026-02-04", "price": 234.86}]},
+    "zucker": {"commodity": "Zucker", "unit": "EUR/t", "updated": "2026-02-04T20:48:19.101094", "stats": {"min": 517.31, "max": 544.47, "avg": 527.87}, "prices": [{"date": "2025-11-06", "price": 521.64}, {"date": "2025-11-07", "price": 525.68}, {"date": "2025-11-08", "price": 524.98}, {"date": "2025-11-09", "price": 524.89}, {"date": "2025-11-10", "price": 528.58}, {"date": "2025-11-11", "price": 529.9}, {"date": "2025-11-12", "price": 535.1}, {"date": "2025-11-13", "price": 532.39}, {"date": "2025-11-14", "price": 534.75}, {"date": "2025-11-15", "price": 530.14}, {"date": "2025-11-16", "price": 526.99}, {"date": "2025-11-17", "price": 525.74}, {"date": "2025-11-18", "price": 527.81}, {"date": "2025-11-19", "price": 532.14}, {"date": "2025-11-20", "price": 534.88}, {"date": "2025-11-21", "price": 533.7}, {"date": "2025-11-22", "price": 536.71}, {"date": "2025-11-23", "price": 532.99}, {"date": "2025-11-24", "price": 529.98}, {"date": "2025-11-25", "price": 527.76}, {"date": "2025-11-26", "price": 533.79}, {"date": "2025-11-27", "price": 537.44}, {"date": "2025-11-28", "price": 544.39}, {"date": "2025-11-29", "price": 539.27}, {"date": "2025-11-30", "price": 537.26}, {"date": "2025-12-01", "price": 534.38}, {"date": "2025-12-02", "price": 531.87}, {"date": "2025-12-03", "price": 535.63}, {"date": "2025-12-04", "price": 534.54}, {"date": "2025-12-05", "price": 536.07}, {"date": "2025-12-06", "price": 533.3}, {"date": "2025-12-07", "price": 536.21}, {"date": "2025-12-08", "price": 539.14}, {"date": "2025-12-09", "price": 544.47}, {"date": "2025-12-10", "price": 540.97}, {"date": "2025-12-11", "price": 540.9}, {"date": "2025-12-12", "price": 538.55}, {"date": "2025-12-13", "price": 538.32}, {"date": "2025-12-14", "price": 535.1}, {"date": "2025-12-15", "price": 533.03}, {"date": "2025-12-16", "price": 527.23}, {"date": "2025-12-17", "price": 527.04}, {"date": "2025-12-18", "price": 521.09}, {"date": "2025-12-19", "price": 520.34}, {"date": "2025-12-20", "price": 518.77}, {"date": "2025-12-21", "price": 517.31}, {"date": "2025-12-22", "price": 521.5}, {"date": "2025-12-23", "price": 520.43}, {"date": "2025-12-24", "price": 521.57}, {"date": "2025-12-25", "price": 519.48}, {"date": "2025-12-26", "price": 521.3}, {"date": "2025-12-27", "price": 521.54}, {"date": "2025-12-28", "price": 522.25}, {"date": "2025-12-29", "price": 524.44}, {"date": "2025-12-30", "price": 529.52}, {"date": "2025-12-31", "price": 527.51}, {"date": "2026-01-01", "price": 529.24}, {"date": "2026-01-02", "price": 526.14}, {"date": "2026-01-03", "price": 525.38}, {"date": "2026-01-04", "price": 523.42}, {"date": "2026-01-05", "price": 523.31}, {"date": "2026-01-06", "price": 521.67}, {"date": "2026-01-07", "price": 527.71}, {"date": "2026-01-08", "price": 526.37}, {"date": "2026-01-09", "price": 523.19}, {"date": "2026-01-10", "price": 519.04}, {"date": "2026-01-11", "price": 525.79}, {"date": "2026-01-12", "price": 522.49}, {"date": "2026-01-13", "price": 522.62}, {"date": "2026-01-14", "price": 521.67}, {"date": "2026-01-15", "price": 522.46}, {"date": "2026-01-16", "price": 523.46}, {"date": "2026-01-17", "price": 523.47}, {"date": "2026-01-18", "price": 521.1}, {"date": "2026-01-19", "price": 523.44}, {"date": "2026-01-20", "price": 529.7}, {"date": "2026-01-21", "price": 522.22}, {"date": "2026-01-22", "price": 518.17}, {"date": "2026-01-23", "price": 519.0}, {"date": "2026-01-24", "price": 521.05}, {"date": "2026-01-25", "price": 524.21}, {"date": "2026-01-26", "price": 525.37}, {"date": "2026-01-27", "price": 523.55}, {"date": "2026-01-28", "price": 527.55}, {"date": "2026-01-29", "price": 527.34}, {"date": "2026-01-30", "price": 526.07}, {"date": "2026-01-31", "price": 521.21}, {"date": "2026-02-01", "price": 519.34}, {"date": "2026-02-02", "price": 522.48}, {"date": "2026-02-03", "price": 526.15}, {"date": "2026-02-04", "price": 528.0}]},
+    "kaffee": {"commodity": "Kaffee", "unit": "EUR/t", "updated": "2026-02-04T20:48:19.101805", "stats": {"min": 4700.75, "max": 4999.48, "avg": 4853.2}, "prices": [{"date": "2025-11-06", "price": 4786.13}, {"date": "2025-11-07", "price": 4777.92}, {"date": "2025-11-08", "price": 4852.45}, {"date": "2025-11-09", "price": 4839.22}, {"date": "2025-11-10", "price": 4851.72}, {"date": "2025-11-11", "price": 4814.5}, {"date": "2025-11-12", "price": 4813.1}, {"date": "2025-11-13", "price": 4769.46}, {"date": "2025-11-14", "price": 4793.45}, {"date": "2025-11-15", "price": 4793.54}, {"date": "2025-11-16", "price": 4808.61}, {"date": "2025-11-17", "price": 4780.35}, {"date": "2025-11-18", "price": 4794.41}, {"date": "2025-11-19", "price": 4810.75}, {"date": "2025-11-20", "price": 4838.02}, {"date": "2025-11-21", "price": 4923.74}, {"date": "2025-11-22", "price": 4938.59}, {"date": "2025-11-23", "price": 4965.46}, {"date": "2025-11-24", "price": 4932.62}, {"date": "2025-11-25", "price": 4931.15}, {"date": "2025-11-26", "price": 4947.22}, {"date": "2025-11-27", "price": 4932.23}, {"date": "2025-11-28", "price": 4948.3}, {"date": "2025-11-29", "price": 4959.64}, {"date": "2025-11-30", "price": 4985.7}, {"date": "2025-12-01", "price": 4999.48}, {"date": "2025-12-02", "price": 4954.68}, {"date": "2025-12-03", "price": 4968.46}, {"date": "2025-12-04", "price": 4935.67}, {"date": "2025-12-05", "price": 4950.64}, {"date": "2025-12-06", "price": 4909.59}, {"date": "2025-12-07", "price": 4896.56}, {"date": "2025-12-08", "price": 4896.99}, {"date": "2025-12-09", "price": 4827.53}, {"date": "2025-12-10", "price": 4820.46}, {"date": "2025-12-11", "price": 4806.55}, {"date": "2025-12-12", "price": 4758.99}, {"date": "2025-12-13", "price": 4744.56}, {"date": "2025-12-14", "price": 4716.69}, {"date": "2025-12-15", "price": 4700.75}, {"date": "2025-12-16", "price": 4753.31}, {"date": "2025-12-17", "price": 4741.9}, {"date": "2025-12-18", "price": 4757.99}, {"date": "2025-12-19", "price": 4745.49}, {"date": "2025-12-20", "price": 4731.42}, {"date": "2025-12-21", "price": 4764.01}, {"date": "2025-12-22", "price": 4809.49}, {"date": "2025-12-23", "price": 4809.24}, {"date": "2025-12-24", "price": 4843.63}, {"date": "2025-12-25", "price": 4814.51}, {"date": "2025-12-26", "price": 4840.47}, {"date": "2025-12-27", "price": 4884.93}, {"date": "2025-12-28", "price": 4910.81}, {"date": "2025-12-29", "price": 4926.72}, {"date": "2025-12-30", "price": 4886.51}, {"date": "2025-12-31", "price": 4915.27}, {"date": "2026-01-01", "price": 4916.31}, {"date": "2026-01-02", "price": 4954.76}, {"date": "2026-01-03", "price": 4937.83}, {"date": "2026-01-04", "price": 4922.42}, {"date": "2026-01-05", "price": 4917.01}, {"date": "2026-01-06", "price": 4883.97}, {"date": "2026-01-07", "price": 4893.09}, {"date": "2026-01-08", "price": 4845.09}, {"date": "2026-01-09", "price": 4877.26}, {"date": "2026-01-10", "price": 4874.99}, {"date": "2026-01-11", "price": 4833.77}, {"date": "2026-01-12", "price": 4818.37}, {"date": "2026-01-13", "price": 4833.97}, {"date": "2026-01-14", "price": 4846.59}, {"date": "2026-01-15", "price": 4820.04}, {"date": "2026-01-16", "price": 4810.74}, {"date": "2026-01-17", "price": 4815.93}, {"date": "2026-01-18", "price": 4816.36}, {"date": "2026-01-19", "price": 4821.16}, {"date": "2026-01-20", "price": 4843.67}, {"date": "2026-01-21", "price": 4837.39}, {"date": "2026-01-22", "price": 4893.76}, {"date": "2026-01-23", "price": 4841.15}, {"date": "2026-01-24", "price": 4781.86}, {"date": "2026-01-25", "price": 4808.32}, {"date": "2026-01-26", "price": 4826.54}, {"date": "2026-01-27", "price": 4793.04}, {"date": "2026-01-28", "price": 4827.33}, {"date": "2026-01-29", "price": 4841.49}, {"date": "2026-01-30", "price": 4846.05}, {"date": "2026-01-31", "price": 4891.74}, {"date": "2026-02-01", "price": 4885.95}, {"date": "2026-02-02", "price": 4885.48}, {"date": "2026-02-03", "price": 4855.93}, {"date": "2026-02-04", "price": 4930.65}]},
+    "butter": {"commodity": "Butter", "unit": "EUR/t", "updated": "2026-02-04T20:48:19.102528", "stats": {"min": 3873.52, "max": 4113.5, "avg": 3967.52}, "prices": [{"date": "2025-11-06", "price": 4069.78}, {"date": "2025-11-07", "price": 4019.17}, {"date": "2025-11-08", "price": 4015.52}, {"date": "2025-11-09", "price": 3995.24}, {"date": "2025-11-10", "price": 3990.44}, {"date": "2025-11-11", "price": 3966.42}, {"date": "2025-11-12", "price": 3957.54}, {"date": "2025-11-13", "price": 3991.33}, {"date": "2025-11-14", "price": 4020.51}, {"date": "2025-11-15", "price": 4004.95}, {"date": "2025-11-16", "price": 3990.68}, {"date": "2025-11-17", "price": 3988.92}, {"date": "2025-11-18", "price": 4031.6}, {"date": "2025-11-19", "price": 4030.42}, {"date": "2025-11-20", "price": 4041.62}, {"date": "2025-11-21", "price": 4031.32}, {"date": "2025-11-22", "price": 4014.89}, {"date": "2025-11-23", "price": 3990.28}, {"date": "2025-11-24", "price": 4001.41}, {"date": "2025-11-25", "price": 3997.52}, {"date": "2025-11-26", "price": 3963.95}, {"date": "2025-11-27", "price": 3953.67}, {"date": "2025-11-28", "price": 3951.94}, {"date": "2025-11-29", "price": 3924.07}, {"date": "2025-11-30", "price": 3922.76}, {"date": "2025-12-01", "price": 3916.9}, {"date": "2025-12-02", "price": 3931.53}, {"date": "2025-12-03", "price": 3925.19}, {"date": "2025-12-04", "price": 3885.16}, {"date": "2025-12-05", "price": 3897.08}, {"date": "2025-12-06", "price": 3908.12}, {"date": "2025-12-07", "price": 3915.17}, {"date": "2025-12-08", "price": 3900.84}, {"date": "2025-12-09", "price": 3897.43}, {"date": "2025-12-10", "price": 3912.28}, {"date": "2025-12-11", "price": 3916.04}, {"date": "2025-12-12", "price": 3873.52}, {"date": "2025-12-13", "price": 3877.06}, {"date": "2025-12-14", "price": 3894.1}, {"date": "2025-12-15", "price": 3886.89}, {"date": "2025-12-16", "price": 3883.73}, {"date": "2025-12-17", "price": 3903.83}, {"date": "2025-12-18", "price": 3922.14}, {"date": "2025-12-19", "price": 3915.19}, {"date": "2025-12-20", "price": 3914.31}, {"date": "2025-12-21", "price": 3947.77}, {"date": "2025-12-22", "price": 3968.17}, {"date": "2025-12-23", "price": 3978.29}, {"date": "2025-12-24", "price": 3967.15}, {"date": "2025-12-25", "price": 3979.02}, {"date": "2025-12-26", "price": 3994.27}, {"date": "2025-12-27", "price": 3972.33}, {"date": "2025-12-28", "price": 3958.08}, {"date": "2025-12-29", "price": 3941.14}, {"date": "2025-12-30", "price": 3950.86}, {"date": "2025-12-31", "price": 3929.45}, {"date": "2026-01-01", "price": 3920.39}, {"date": "2026-01-02", "price": 3920.77}, {"date": "2026-01-03", "price": 3895.26}, {"date": "2026-01-04", "price": 3927.32}, {"date": "2026-01-05", "price": 3958.43}, {"date": "2026-01-06", "price": 3964.5}, {"date": "2026-01-07", "price": 3953.77}, {"date": "2026-01-08", "price": 3970.59}, {"date": "2026-01-09", "price": 3965.14}, {"date": "2026-01-10", "price": 3971.7}, {"date": "2026-01-11", "price": 3944.34}, {"date": "2026-01-12", "price": 3960.62}, {"date": "2026-01-13", "price": 3969.91}, {"date": "2026-01-14", "price": 3979.4}, {"date": "2026-01-15", "price": 3996.4}, {"date": "2026-01-16", "price": 4023.88}, {"date": "2026-01-17", "price": 4016.42}, {"date": "2026-01-18", "price": 3991.8}, {"date": "2026-01-19", "price": 3978.83}, {"date": "2026-01-20", "price": 3991.78}, {"date": "2026-01-21", "price": 3962.89}, {"date": "2026-01-22", "price": 3954.2}, {"date": "2026-01-23", "price": 3919.6}, {"date": "2026-01-24", "price": 3959.35}, {"date": "2026-01-25", "price": 3968.34}, {"date": "2026-01-26", "price": 3974.86}, {"date": "2026-01-27", "price": 3974.31}, {"date": "2026-01-28", "price": 3997.22}, {"date": "2026-01-29", "price": 4007.08}, {"date": "2026-01-30", "price": 4027.75}, {"date": "2026-01-31", "price": 4064.98}, {"date": "2026-02-01", "price": 4102.59}, {"date": "2026-02-02", "price": 4113.5}, {"date": "2026-02-03", "price": 4108.39}, {"date": "2026-02-04", "price": 4079.26}]},
+};
+
+        async function loadData() {
+            let latestUpdate = null;
+            
+            for (const [c, data] of Object.entries(EMBEDDED_DATA)) {
+                updateChart(c, data);
+                if (data.updated) {
+                    const updateDate = new Date(data.updated);
+                    if (!latestUpdate || updateDate > latestUpdate) {
+                        latestUpdate = updateDate;
+                    }
+                }
+            }
+            
+            if (latestUpdate) {
+                document.getElementById('lastUpdate').textContent = 
+                    `Stand: ${latestUpdate.toLocaleDateString('de-DE')} ${latestUpdate.toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'})}`;
+            }
+        }
+        
+        // Charts initialisieren
+        ['weizen', 'zucker', 'kaffee', 'butter'].forEach(c => {
+            charts[c] = createChart(`${c}-chart`, c);
+        });
+        
+        // Period-Dropdown
+        document.getElementById('periodSelect').addEventListener('change', (e) => {
+            currentPeriod = e.target.value;
+            updateAllCharts();
+        });
+        
+        // Config laden
+        async function loadConfig() {
+            try {
+                const resp = await fetch('../config.json');
+                if (resp.ok) {
+                    const config = await resp.json();
+                    if (config.defaultPeriod && PERIODS[config.defaultPeriod]) {
+                        currentPeriod = config.defaultPeriod;
+                        document.getElementById('periodSelect').value = currentPeriod;
+                    }
+                }
+            } catch (e) {}
+        }
+        
+        loadData();
+    </script>
+</body>
+</html>

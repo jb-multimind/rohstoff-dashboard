@@ -1,0 +1,20 @@
+{
+  "defaultPeriod": "3m",
+  "periods": {
+    "1w": { "label": "1 Woche", "days": 7 },
+    "1m": { "label": "1 Monat", "days": 30 },
+    "3m": { "label": "3 Monate", "days": 90 }
+  },
+  "crawler": {
+    "schedule": {
+      "hour": 6,
+      "minute": 0
+    }
+  },
+  "display": {
+    "currency": "EUR",
+    "currencySymbol": "€",
+    "unit": "t",
+    "refreshIntervalSeconds": 3600
+  }
+}
