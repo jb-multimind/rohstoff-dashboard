@@ -15,17 +15,16 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            /* Musswessels CI: Schwarz für TV/Monitor */
             background: #000000;
             height: 100vh;
-            padding: 15px;
+            padding: 12px;
             color: #fff;
             overflow: hidden;
         }
         
         header {
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -33,14 +32,14 @@
         }
         
         header h1 {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 300;
             margin: 0;
             color: #fff;
         }
         
         header .updated {
-            font-size: 12px;
+            font-size: 11px;
             opacity: 0.8;
         }
         
@@ -49,8 +48,8 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 6px;
             color: #fff;
-            padding: 6px 12px;
-            font-size: 13px;
+            padding: 5px 10px;
+            font-size: 12px;
             cursor: pointer;
             outline: none;
         }
@@ -66,41 +65,43 @@
         
         .dashboard {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(4, 1fr);
             grid-template-rows: 1fr 1fr;
-            gap: 15px;
-            height: calc(100vh - 100px);
+            gap: 12px;
+            height: calc(100vh - 60px);
             width: 100%;
             max-width: none;
         }
         
         .card {
             background: rgba(255, 255, 255, 0.03);
-            border-radius: 16px;
-            padding: 15px 20px;
+            border-radius: 12px;
+            padding: 10px 14px;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(179, 0, 25, 0.3);
             display: flex;
             flex-direction: column;
+            min-height: 0;
         }
         
         .card-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         
         .card-title {
-            font-size: 22px;
+            font-size: 16px;
             font-weight: 600;
             display: flex;
             align-items: baseline;
-            gap: 10px;
+            gap: 6px;
+            line-height: 1.2;
         }
         
         .card-title .source {
-            font-size: 10px;
+            font-size: 8px;
             font-weight: 400;
             opacity: 0.6;
         }
@@ -110,17 +111,18 @@
         }
         
         .card-price .current {
-            font-size: 22px;
+            font-size: 16px;
             font-weight: 700;
+            line-height: 1.2;
         }
         
         .card-price .unit {
-            font-size: 11px;
+            font-size: 9px;
             opacity: 0.7;
         }
         
         .card-price .change {
-            font-size: 13px;
+            font-size: 11px;
             margin-top: 2px;
         }
         
@@ -130,15 +132,15 @@
         .chart-container {
             flex: 1;
             position: relative;
-            min-height: 150px;
+            min-height: 100px;
         }
         
         .stats-row {
             display: flex;
             justify-content: space-around;
-            padding-top: 10px;
+            padding-top: 6px;
             border-top: 1px solid rgba(255, 255, 255, 0.15);
-            margin-top: 8px;
+            margin-top: 6px;
         }
         
         .stat-item {
@@ -146,14 +148,14 @@
         }
         
         .stat-label {
-            font-size: 10px;
+            font-size: 8px;
             text-transform: uppercase;
             opacity: 0.6;
             letter-spacing: 0.5px;
         }
         
         .stat-value {
-            font-size: 14px;
+            font-size: 11px;
             font-weight: 600;
             margin-top: 2px;
         }
@@ -162,31 +164,21 @@
         .stat-value.max { color: #a8e6a3; }
         .stat-value.avg { color: #ffd699; }
         
-        /* Musswessels-Farben für die Rohstoffe - Rot */
-        .card.weizen { border-left: 4px solid #b30019; }
-        .card.zucker { border-left: 4px solid #d4001f; }
-        .card.kaffee { border-left: 4px solid #b30019; }
-        .card.butter { border-left: 4px solid #d4001f; }
+        /* Musswessels-Farben für die Rohstoffe */
+        .card.weizen { border-left: 3px solid #b30019; }
+        .card.roggen { border-left: 3px solid #9a0015; }
+        .card.zucker { border-left: 3px solid #d4001f; }
+        .card.kaffee { border-left: 3px solid #b30019; }
+        .card.kakao { border-left: 3px solid #c8001c; }
+        .card.butter { border-left: 3px solid #d4001f; }
+        .card.kaese { border-left: 3px solid #a80017; }
+        .card.milch { border-left: 3px solid #bc0018; }
         
-        footer {
-            display: none;
-        }
-        
-        @media (max-width: 900px) {
+        @media (max-width: 1400px) {
             .dashboard {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, 1fr);
                 grid-template-rows: repeat(4, 1fr);
             }
-        }
-        
-        /* Landscape TV Optimierung */
-        @media (min-aspect-ratio: 16/9) {
-            body { padding: 10px 20px; }
-            .dashboard { gap: 12px; height: calc(100vh - 70px); }
-            header { margin-bottom: 8px; }
-            .card { padding: 12px 15px; }
-            .card-header { margin-bottom: 6px; }
-            .stats-row { padding-top: 8px; margin-top: 6px; }
         }
     </style>
 </head>
@@ -199,13 +191,15 @@
                 <option value="3m" selected>3 Monate</option>
             </select>
         </div>
+        <h1>Rohstoff-Dashboard</h1>
         <div class="updated" id="lastUpdate">Wird geladen...</div>
     </header>
     
     <div class="dashboard">
+        <!-- Row 1 -->
         <div class="card weizen">
             <div class="card-header">
-                <div class="card-title">Weizen<span class="source">Yahoo Finance</span></div>
+                <div class="card-title">Weizen<span class="source">Matif</span></div>
                 <div class="card-price">
                     <div class="current" id="weizen-price">--</div>
                     <div class="unit" id="weizen-unit">EUR/t</div>
@@ -221,7 +215,7 @@
                     <div class="stat-value min" id="weizen-min">--</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">Durchschnitt</div>
+                    <div class="stat-label">Ø</div>
                     <div class="stat-value avg" id="weizen-avg">--</div>
                 </div>
                 <div class="stat-item">
@@ -231,9 +225,37 @@
             </div>
         </div>
         
+        <div class="card roggen">
+            <div class="card-header">
+                <div class="card-title">Roggen<span class="source">Weizen-Basis</span></div>
+                <div class="card-price">
+                    <div class="current" id="roggen-price">--</div>
+                    <div class="unit" id="roggen-unit">EUR/t</div>
+                    <div class="change" id="roggen-change">--</div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="roggen-chart"></canvas>
+            </div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-label">Min</div>
+                    <div class="stat-value min" id="roggen-min">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Ø</div>
+                    <div class="stat-value avg" id="roggen-avg">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Max</div>
+                    <div class="stat-value max" id="roggen-max">--</div>
+                </div>
+            </div>
+        </div>
+        
         <div class="card zucker">
             <div class="card-header">
-                <div class="card-title">Zucker<span class="source">Yahoo Finance</span></div>
+                <div class="card-title">Zucker<span class="source">NYBOT</span></div>
                 <div class="card-price">
                     <div class="current" id="zucker-price">--</div>
                     <div class="unit" id="zucker-unit">EUR/t</div>
@@ -249,7 +271,7 @@
                     <div class="stat-value min" id="zucker-min">--</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">Durchschnitt</div>
+                    <div class="stat-label">Ø</div>
                     <div class="stat-value avg" id="zucker-avg">--</div>
                 </div>
                 <div class="stat-item">
@@ -261,7 +283,7 @@
         
         <div class="card kaffee">
             <div class="card-header">
-                <div class="card-title">Kaffee<span class="source">Yahoo Finance</span></div>
+                <div class="card-title">Kaffee<span class="source">ICE</span></div>
                 <div class="card-price">
                     <div class="current" id="kaffee-price">--</div>
                     <div class="unit" id="kaffee-unit">EUR/t</div>
@@ -277,7 +299,7 @@
                     <div class="stat-value min" id="kaffee-min">--</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">Durchschnitt</div>
+                    <div class="stat-label">Ø</div>
                     <div class="stat-value avg" id="kaffee-avg">--</div>
                 </div>
                 <div class="stat-item">
@@ -287,9 +309,38 @@
             </div>
         </div>
         
+        <!-- Row 2 -->
+        <div class="card kakao">
+            <div class="card-header">
+                <div class="card-title">Kakao<span class="source">ICE</span></div>
+                <div class="card-price">
+                    <div class="current" id="kakao-price">--</div>
+                    <div class="unit" id="kakao-unit">EUR/t</div>
+                    <div class="change" id="kakao-change">--</div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="kakao-chart"></canvas>
+            </div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-label">Min</div>
+                    <div class="stat-value min" id="kakao-min">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Ø</div>
+                    <div class="stat-value avg" id="kakao-avg">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Max</div>
+                    <div class="stat-value max" id="kakao-max">--</div>
+                </div>
+            </div>
+        </div>
+        
         <div class="card butter">
             <div class="card-header">
-                <div class="card-title">Butter<span class="source">CLAL.it Kempten</span></div>
+                <div class="card-title">Butter<span class="source">CLAL Kempten</span></div>
                 <div class="card-price">
                     <div class="current" id="butter-price">--</div>
                     <div class="unit" id="butter-unit">EUR/t</div>
@@ -305,12 +356,68 @@
                     <div class="stat-value min" id="butter-min">--</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">Durchschnitt</div>
+                    <div class="stat-label">Ø</div>
                     <div class="stat-value avg" id="butter-avg">--</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-label">Max</div>
                     <div class="stat-value max" id="butter-max">--</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card kaese">
+            <div class="card-header">
+                <div class="card-title">Käse<span class="source">CLAL Cheddar</span></div>
+                <div class="card-price">
+                    <div class="current" id="kaese-price">--</div>
+                    <div class="unit" id="kaese-unit">EUR/t</div>
+                    <div class="change" id="kaese-change">--</div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="kaese-chart"></canvas>
+            </div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-label">Min</div>
+                    <div class="stat-value min" id="kaese-min">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Ø</div>
+                    <div class="stat-value avg" id="kaese-avg">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Max</div>
+                    <div class="stat-value max" id="kaese-max">--</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card milch">
+            <div class="card-header">
+                <div class="card-title">Milch<span class="source">CLAL EU</span></div>
+                <div class="card-price">
+                    <div class="current" id="milch-price">--</div>
+                    <div class="unit" id="milch-unit">EUR/t</div>
+                    <div class="change" id="milch-change">--</div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="milch-chart"></canvas>
+            </div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-label">Min</div>
+                    <div class="stat-value min" id="milch-min">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Ø</div>
+                    <div class="stat-value avg" id="milch-avg">--</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Max</div>
+                    <div class="stat-value max" id="milch-max">--</div>
                 </div>
             </div>
         </div>
@@ -326,18 +433,21 @@
         let currentPeriod = '3m';
         let allData = {};
         
-        // Musswessels CI-Farben für Charts - Rot transparent
         const COLORS = {
             weizen: { line: 'rgba(179, 0, 25, 0.9)', bg: 'rgba(179, 0, 25, 0.2)' },
+            roggen: { line: 'rgba(154, 0, 21, 0.9)', bg: 'rgba(154, 0, 21, 0.2)' },
             zucker: { line: 'rgba(212, 0, 31, 0.9)', bg: 'rgba(212, 0, 31, 0.2)' },
             kaffee: { line: 'rgba(179, 0, 25, 0.8)', bg: 'rgba(179, 0, 25, 0.15)' },
-            butter: { line: 'rgba(212, 0, 31, 0.8)', bg: 'rgba(212, 0, 31, 0.15)' }
+            kakao: { line: 'rgba(200, 0, 28, 0.9)', bg: 'rgba(200, 0, 28, 0.2)' },
+            butter: { line: 'rgba(212, 0, 31, 0.8)', bg: 'rgba(212, 0, 31, 0.15)' },
+            kaese: { line: 'rgba(168, 0, 23, 0.9)', bg: 'rgba(168, 0, 23, 0.2)' },
+            milch: { line: 'rgba(188, 0, 24, 0.9)', bg: 'rgba(188, 0, 24, 0.2)' }
         };
         
         const charts = {};
         
         function formatPrice(price, withSymbol = true) {
-            const formatted = price.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const formatted = price.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
             return withSymbol ? '€ ' + formatted : formatted;
         }
         
@@ -358,7 +468,7 @@
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4
+                        pointHoverRadius: 3
                     }]
                 },
                 options: {
@@ -376,18 +486,18 @@
                     },
                     scales: {
                         x: {
-                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            grid: { color: 'rgba(255,255,255,0.08)' },
                             ticks: { 
-                                color: 'rgba(255,255,255,0.7)',
-                                maxTicksLimit: 6,
-                                font: { size: 10 }
+                                color: 'rgba(255,255,255,0.6)',
+                                maxTicksLimit: 5,
+                                font: { size: 9 }
                             }
                         },
                         y: {
-                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            grid: { color: 'rgba(255,255,255,0.08)' },
                             ticks: { 
-                                color: 'rgba(255,255,255,0.7)',
-                                font: { size: 10 },
+                                color: 'rgba(255,255,255,0.6)',
+                                font: { size: 9 },
                                 callback: function(value) {
                                     return formatPrice(value, false);
                                 }
@@ -441,10 +551,10 @@
             const changeEl = document.getElementById(`${commodity}-change`);
             const periodLabel = PERIODS[currentPeriod]?.label || '3M';
             if (change >= 0) {
-                changeEl.textContent = `+${change}% (${periodLabel})`;
+                changeEl.textContent = `+${change}%`;
                 changeEl.className = 'change up';
             } else {
-                changeEl.textContent = `${change}% (${periodLabel})`;
+                changeEl.textContent = `${change}%`;
                 changeEl.className = 'change down';
             }
             
@@ -461,7 +571,7 @@
         }
         
         async function loadData() {
-            const commodities = ['weizen', 'zucker', 'kaffee', 'butter'];
+            const commodities = ['weizen', 'roggen', 'zucker', 'kaffee', 'kakao', 'butter', 'kaese', 'milch'];
             let latestUpdate = null;
             
             for (const c of commodities) {
@@ -489,7 +599,7 @@
             }
         }
         
-        ['weizen', 'zucker', 'kaffee', 'butter'].forEach(c => {
+        ['weizen', 'roggen', 'zucker', 'kaffee', 'kakao', 'butter', 'kaese', 'milch'].forEach(c => {
             charts[c] = createChart(`${c}-chart`, c);
         });
         

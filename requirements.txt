@@ -1,0 +1,5 @@
+# Core dependencies
+# (kein Flask nötig - wir nutzen stdlib http.server)
+
+# Optional: Playwright für Weizen-Scraping (kann weggelassen werden für schnelleren Build)
+# playwright>=1.40.0
