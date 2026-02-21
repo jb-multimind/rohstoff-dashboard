@@ -158,50 +158,65 @@ def fetch_finanzen_net_wheat() -> list:
                 except:
                     continue
             
-            # Fallback: Durchsuche Seite nach großen Zahlen (Preis)
+            # Fallback: Durchsuche Seite nach Zahlen MIT KONTEXT
             if not current_price:
-                print("  Kein Selector funktioniert - suche nach Zahlen...")
+                print("  Kein Selector funktioniert - suche nach Zahlen mit Kontext...")
                 page_text = page.inner_text('body')
                 import re
                 
-                # Mehrere Muster probieren:
-                # 1. Deutsches Format mit Komma: 197,00 oder 197,0
-                matches = re.findall(r'(\d{3}),(\d{1,2})', page_text)
-                for match in matches:
-                    try:
-                        price = float(f"{match[0]}.{match[1]}")
-                        if 100 <= price <= 500:
-                            current_price = price
-                            print(f"  Gefunden via Text (Format 197,00): {match[0]},{match[1]}")
-                            break
-                    except:
-                        continue
+                # Suche nach Zahlen in der Nähe von Preis-Keywords
+                # Keywords die auf den echten Preis hinweisen
+                price_keywords = [
+                    r'Kurs',
+                    r'Aktuell',
+                    r'Stand',
+                    r'EUR',
+                    r'€',
+                    r'Preis',
+                    r'Snapshot',
+                    r'Realtime',
+                ]
                 
-                # 2. Format mit Punkt: 197.00
-                if not current_price:
-                    matches = re.findall(r'(\d{3})\.(\d{1,2})', page_text)
-                    for match in matches:
-                        try:
-                            price = float(f"{match[0]}.{match[1]}")
-                            if 100 <= price <= 500:
-                                current_price = price
-                                print(f"  Gefunden via Text (Format 197.00): {match[0]}.{match[1]}")
-                                break
-                        except:
-                            continue
+                # Teile Text in Zeilen und suche in benachbarten Zeilen
+                lines = page_text.split('\n')
+                candidates = []
                 
-                # 3. Nur Zahl ohne Nachkommastellen: 197
-                if not current_price:
-                    matches = re.findall(r'\b(\d{3})\b', page_text)
-                    for match in matches:
-                        try:
-                            price = float(match)
-                            if 100 <= price <= 500:
-                                current_price = price
-                                print(f"  Gefunden via Text (Format 197): {match}")
-                                break
-                        except:
-                            continue
+                for i, line in enumerate(lines):
+                    # Prüfe ob Zeile ein Keyword enthält oder benachbarte Zeilen
+                    context_window = '\n'.join(lines[max(0, i-2):min(len(lines), i+3)])
+                    has_keyword = any(re.search(kw, context_window, re.IGNORECASE) for kw in price_keywords)
+                    
+                    if has_keyword:
+                        # Suche Zahlen in dieser Zeile
+                        # Format: 197,00 oder 197.00 oder 197
+                        number_matches = re.findall(r'(\d{3})[,.]?(\d{0,2})', line)
+                        for match in number_matches:
+                            try:
+                                if match[1]:
+                                    price = float(f"{match[0]}.{match[1]}")
+                                else:
+                                    price = float(match[0])
+                                
+                                if 100 <= price <= 500:
+                                    candidates.append({
+                                        'price': price,
+                                        'line': line.strip(),
+                                        'context': context_window[:100]
+                                    })
+                            except:
+                                pass
+                
+                # Nimm den ERSTEN Kandidaten (meist der prominenteste Preis)
+                if candidates:
+                    current_price = candidates[0]['price']
+                    print(f"  Gefunden mit Kontext-Suche: {current_price}")
+                    print(f"  Zeile: {candidates[0]['line'][:80]}")
+                    
+                    # Falls mehrere Kandidaten: zeige sie zur Info
+                    if len(candidates) > 1:
+                        print(f"  Weitere Kandidaten gefunden: {[c['price'] for c in candidates[1:4]]}")
+                else:
+                    print("  Keine Zahlen mit Preis-Kontext gefunden!")
             
             browser.close()
             
