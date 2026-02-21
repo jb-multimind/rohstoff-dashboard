@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# Initial data crawl on startup
+echo "Running initial data crawl..."
+python3 /app/crawler.py || echo "Initial crawl failed, continuing..."
+
 # Start cron in background
 cron
 
