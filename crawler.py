@@ -119,7 +119,8 @@ def fetch_finanzen_net_wheat() -> list:
                      wait_until='networkidle', 
                      timeout=30000)
             
-            page.wait_for_timeout(3000)
+            # Warte länger - Preis wird oft via JavaScript nachgeladen
+            page.wait_for_timeout(5000)
             
             # Versuche mehrere Selectors (finanzen.net ändert oft die Struktur)
             selectors = [
@@ -162,17 +163,45 @@ def fetch_finanzen_net_wheat() -> list:
                 print("  Kein Selector funktioniert - suche nach Zahlen...")
                 page_text = page.inner_text('body')
                 import re
-                # Suche nach Zahlen mit Komma (deutsches Format)
-                matches = re.findall(r'(\d{3}),(\d{2})', page_text)
+                
+                # Mehrere Muster probieren:
+                # 1. Deutsches Format mit Komma: 197,00 oder 197,0
+                matches = re.findall(r'(\d{3}),(\d{1,2})', page_text)
                 for match in matches:
                     try:
                         price = float(f"{match[0]}.{match[1]}")
                         if 100 <= price <= 500:
                             current_price = price
-                            print(f"  Gefunden via Text-Suche: {match[0]},{match[1]}")
+                            print(f"  Gefunden via Text (Format 197,00): {match[0]},{match[1]}")
                             break
                     except:
                         continue
+                
+                # 2. Format mit Punkt: 197.00
+                if not current_price:
+                    matches = re.findall(r'(\d{3})\.(\d{1,2})', page_text)
+                    for match in matches:
+                        try:
+                            price = float(f"{match[0]}.{match[1]}")
+                            if 100 <= price <= 500:
+                                current_price = price
+                                print(f"  Gefunden via Text (Format 197.00): {match[0]}.{match[1]}")
+                                break
+                        except:
+                            continue
+                
+                # 3. Nur Zahl ohne Nachkommastellen: 197
+                if not current_price:
+                    matches = re.findall(r'\b(\d{3})\b', page_text)
+                    for match in matches:
+                        try:
+                            price = float(match)
+                            if 100 <= price <= 500:
+                                current_price = price
+                                print(f"  Gefunden via Text (Format 197): {match}")
+                                break
+                        except:
+                            continue
             
             browser.close()
             
