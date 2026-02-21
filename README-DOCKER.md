@@ -8,7 +8,7 @@ Web-Service für 8 Rohstoff-Preise mit automatischem Crawler.
 - **Auto-Crawler**: Täglich um 6:00 UTC
 - **Live-Dashboard**: Responsive Web-UI mit Charts
 - **Docker**: Production-ready Container
-- **Lightweight**: ~150 MB Image
+- **Production-Ready**: ~650 MB Image (inkl. Playwright/Chromium für echtes Weizen-Scraping)
 
 ## 🚀 Schnellstart
 
@@ -204,17 +204,17 @@ ports:
   - "3000:8080"
 ```
 
-## 📦 Image-Größe optimieren
+## 📦 Image-Größe
 
-Playwright (für Weizen-Scraping) ist optional und vergrößert das Image um ~500MB.
+**Standard (mit Playwright):**
+- Größe: ~650 MB
+- Weizen-Preise: Live von finanzen.net (Browser-Scraping)
+- Alle anderen Rohstoffe: API-basiert
 
-**Ohne Playwright** (Weizen nutzt Fallback-Daten):
-1. In `Dockerfile` Playwright-Zeilen auskommentieren
-2. Image wird ~150MB statt ~650MB
-
-**Mit Playwright**:
-- Weizen-Preise werden live von finanzen.net gescraped
-- Requires: Chromium (~400MB)
+**Warum Playwright?**
+- finanzen.net hat keine öffentliche API
+- Playwright rendert die Website und extrahiert den aktuellen Preis
+- Zuverlässiger als einfaches HTML-Parsing (Website-Updates brechen es nicht)
 
 ## 🔒 Sicherheit
 
