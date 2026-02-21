@@ -31,13 +31,6 @@
             padding: 0 10px;
         }
         
-        header h1 {
-            font-size: 20px;
-            font-weight: 300;
-            margin: 0;
-            color: #fff;
-        }
-        
         header .updated {
             font-size: 11px;
             opacity: 0.8;
@@ -128,6 +121,18 @@
             opacity: 0.6;
         }
         
+        .card-title .source a {
+            color: inherit;
+            text-decoration: none;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        
+        .card-title .source a:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+        
         .card-price {
             text-align: right;
         }
@@ -211,10 +216,11 @@
                 <option value="1w">1 Woche</option>
                 <option value="1m">1 Monat</option>
                 <option value="3m" selected>3 Monate</option>
+                <option value="6m">6 Monate</option>
+                <option value="1y">1 Jahr</option>
             </select>
             <button class="refresh-btn" id="refreshBtn" onclick="refreshData()">🔄 Aktualisieren</button>
         </div>
-        <h1>Rohstoff-Dashboard</h1>
         <div class="updated" id="lastUpdate">Wird geladen...</div>
     </header>
     
@@ -222,7 +228,7 @@
         <!-- Row 1 -->
         <div class="card weizen">
             <div class="card-header">
-                <div class="card-title">Weizen<span class="source">Matif</span></div>
+                <div class="card-title">Weizen<span class="source"><a href="https://www.finanzen.net/rohstoffe/weizenpreis" target="_blank">Matif</a></span></div>
                 <div class="card-price">
                     <div class="current" id="weizen-price">--</div>
                     <div class="unit" id="weizen-unit">EUR/t</div>
@@ -250,7 +256,7 @@
         
         <div class="card roggen">
             <div class="card-header">
-                <div class="card-title">Roggen<span class="source">Weizen-Basis</span></div>
+                <div class="card-title">Roggen<span class="source"><a href="https://www.finanzen.net/rohstoffe/weizenpreis" target="_blank">Weizen-Basis</a></span></div>
                 <div class="card-price">
                     <div class="current" id="roggen-price">--</div>
                     <div class="unit" id="roggen-unit">EUR/t</div>
@@ -278,7 +284,7 @@
         
         <div class="card zucker">
             <div class="card-header">
-                <div class="card-title">Zucker<span class="source">NYBOT</span></div>
+                <div class="card-title">Zucker<span class="source"><a href="https://finance.yahoo.com/quote/SB=F" target="_blank">NYBOT</a></span></div>
                 <div class="card-price">
                     <div class="current" id="zucker-price">--</div>
                     <div class="unit" id="zucker-unit">EUR/t</div>
@@ -306,7 +312,7 @@
         
         <div class="card kaffee">
             <div class="card-header">
-                <div class="card-title">Kaffee<span class="source">ICE</span></div>
+                <div class="card-title">Kaffee<span class="source"><a href="https://finance.yahoo.com/quote/KC=F" target="_blank">ICE</a></span></div>
                 <div class="card-price">
                     <div class="current" id="kaffee-price">--</div>
                     <div class="unit" id="kaffee-unit">EUR/t</div>
@@ -335,7 +341,7 @@
         <!-- Row 2 -->
         <div class="card kakao">
             <div class="card-header">
-                <div class="card-title">Kakao<span class="source">ICE</span></div>
+                <div class="card-title">Kakao<span class="source"><a href="https://finance.yahoo.com/quote/CC=F" target="_blank">ICE</a></span></div>
                 <div class="card-price">
                     <div class="current" id="kakao-price">--</div>
                     <div class="unit" id="kakao-unit">EUR/t</div>
@@ -363,7 +369,7 @@
         
         <div class="card butter">
             <div class="card-header">
-                <div class="card-title">Butter<span class="source">CLAL Kempten</span></div>
+                <div class="card-title">Butter<span class="source"><a href="https://www.clal.it/en/index.php?section=burro_germania" target="_blank">CLAL Kempten</a></span></div>
                 <div class="card-price">
                     <div class="current" id="butter-price">--</div>
                     <div class="unit" id="butter-unit">EUR/t</div>
@@ -391,7 +397,7 @@
         
         <div class="card kaese">
             <div class="card-header">
-                <div class="card-title">Käse<span class="source">CLAL Cheddar</span></div>
+                <div class="card-title">Käse<span class="source"><a href="https://www.clal.it/en/index.php?section=prezzi_prodotti_mmo&campo=Cheddar" target="_blank">CLAL Cheddar</a></span></div>
                 <div class="card-price">
                     <div class="current" id="kaese-price">--</div>
                     <div class="unit" id="kaese-unit">EUR/t</div>
@@ -419,7 +425,7 @@
         
         <div class="card milch">
             <div class="card-header">
-                <div class="card-title">Milch<span class="source">CLAL EU</span></div>
+                <div class="card-title">Milch<span class="source"><a href="https://www.clal.it/en/index.php?section=latte_europa_mmo" target="_blank">CLAL EU</a></span></div>
                 <div class="card-price">
                     <div class="current" id="milch-price">--</div>
                     <div class="unit" id="milch-unit">EUR/t</div>
@@ -450,7 +456,9 @@
         const PERIODS = {
             '1w': { label: '1 Woche', days: 7 },
             '1m': { label: '1 Monat', days: 30 },
-            '3m': { label: '3 Monate', days: 90 }
+            '3m': { label: '3 Monate', days: 90 },
+            '6m': { label: '6 Monate', days: 180 },
+            '1y': { label: '1 Jahr', days: 365 }
         };
         
         let currentPeriod = '3m';

@@ -3,7 +3,9 @@
   "periods": {
     "1w": { "label": "1 Woche", "days": 7 },
     "1m": { "label": "1 Monat", "days": 30 },
-    "3m": { "label": "3 Monate", "days": 90 }
+    "3m": { "label": "3 Monate", "days": 90 },
+    "6m": { "label": "6 Monate", "days": 180 },
+    "1y": { "label": "1 Jahr", "days": 365 }
   },
   "crawler": {
     "schedule": {
