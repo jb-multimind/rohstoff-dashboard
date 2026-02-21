@@ -13,6 +13,24 @@ class DashboardHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory="/app", **kwargs)
     
+    def do_GET(self):
+        """Handle GET requests - nur /dashboard/ und /data/ erlauben"""
+        # Root redirect zu /dashboard/
+        if self.path == '/' or self.path == '':
+            self.send_response(301)
+            self.send_header('Location', '/dashboard/')
+            self.end_headers()
+            return
+        
+        # Nur bestimmte Pfade erlauben
+        allowed_paths = ['/dashboard/', '/data/', '/config.json']
+        if not any(self.path.startswith(p) for p in allowed_paths):
+            self.send_error(403, "Forbidden")
+            return
+        
+        # Standard GET handler
+        super().do_GET()
+    
     def do_POST(self):
         """Handle POST requests für API endpoints"""
         if self.path == '/api/refresh':
