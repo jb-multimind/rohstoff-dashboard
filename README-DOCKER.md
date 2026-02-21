@@ -148,6 +148,21 @@ sudo systemctl start rohstoff-dashboard
 
 ## 🔄 Updates
 
+### Via SSH (empfohlen)
+
+**Option 1: Schnelles Update** (normale Code-Änderungen)
+```bash
+cd /opt/rohstoff-dashboard
+./quick-update.sh
+```
+
+**Option 2: Vollständiges Update** (Dockerfile-Änderungen, neue Dependencies)
+```bash
+cd /opt/rohstoff-dashboard
+./update.sh
+```
+
+**Option 3: Manuell**
 ```bash
 cd /opt/rohstoff-dashboard
 git pull origin main
@@ -155,6 +170,10 @@ docker-compose down
 docker-compose build --no-cache
 docker-compose up -d
 ```
+
+**Wann welches Update?**
+- `quick-update.sh` → Dashboard, Crawler, Config-Änderungen (1-2 Min)
+- `update.sh` → Dockerfile, neue Dependencies, Playwright (5-10 Min)
 
 ## 📱 Pi Kiosk-Modus
 
