@@ -104,7 +104,7 @@ def get_eur_usd_rate() -> float:
 # =============================================================================
 
 def fetch_finanzen_net_wheat() -> list:
-    """Holt Matif Weizen via Playwright Browser-Scraping"""
+    """Holt Matif Weizen via Playwright Browser-Scraping mit Fallback-Selectors"""
     print("  Browser-Scraping finanzen.net...")
     
     try:
@@ -121,11 +121,63 @@ def fetch_finanzen_net_wheat() -> list:
             
             page.wait_for_timeout(3000)
             
-            # Extrahiere Preis
-            price_text = page.locator('.snapshot-value-instrument').first.text_content()
-            current_price = float(price_text.replace('.', '').replace(',', '.'))
+            # Versuche mehrere Selectors (finanzen.net ändert oft die Struktur)
+            selectors = [
+                '.snapshot-value-instrument',  # Alter Selector
+                '[data-field="price"]',         # Data-Attribute
+                '.snapshot__value',             # Alternative Klasse
+                '[class*="snapshot"][class*="value"]',  # Wildcard
+                '[class*="price-value"]',       # Preis-Value
+                'span[class*="snapshot"]',      # Span mit snapshot
+                '.instrument-price',            # Instrument-Preis
+                '[data-test="price"]',          # Test-Attribut
+            ]
+            
+            current_price = None
+            price_text = None
+            
+            # Probiere alle Selectors durch
+            for selector in selectors:
+                try:
+                    element = page.locator(selector).first
+                    price_text = element.text_content(timeout=2000)
+                    
+                    if price_text:
+                        # Bereinige und parse
+                        cleaned = price_text.strip().replace('.', '').replace(',', '.')
+                        # Entferne alle nicht-numerischen Zeichen außer Punkt
+                        import re
+                        numbers = re.findall(r'\d+\.?\d*', cleaned)
+                        if numbers:
+                            current_price = float(numbers[0])
+                            # Sanity check: Weizen sollte zwischen 100-500 EUR/t sein
+                            if 100 <= current_price <= 500:
+                                print(f"  Gefunden mit Selector '{selector}': {price_text}")
+                                break
+                except:
+                    continue
+            
+            # Fallback: Durchsuche Seite nach großen Zahlen (Preis)
+            if not current_price:
+                print("  Kein Selector funktioniert - suche nach Zahlen...")
+                page_text = page.inner_text('body')
+                import re
+                # Suche nach Zahlen mit Komma (deutsches Format)
+                matches = re.findall(r'(\d{3}),(\d{2})', page_text)
+                for match in matches:
+                    try:
+                        price = float(f"{match[0]}.{match[1]}")
+                        if 100 <= price <= 500:
+                            current_price = price
+                            print(f"  Gefunden via Text-Suche: {match[0]},{match[1]}")
+                            break
+                    except:
+                        continue
             
             browser.close()
+            
+            if not current_price:
+                raise Exception("Kein passender Preis gefunden (alle Methoden fehlgeschlagen)")
             
             print(f"  Matif Weizen: {current_price} EUR/t")
             
