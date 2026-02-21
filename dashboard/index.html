@@ -63,6 +63,28 @@
             color: #fff;
         }
         
+        .refresh-btn {
+            background: rgba(179, 0, 25, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            color: #fff;
+            padding: 5px 15px;
+            font-size: 12px;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s;
+        }
+        
+        .refresh-btn:hover {
+            background: rgba(212, 0, 31, 1);
+            transform: scale(1.05);
+        }
+        
+        .refresh-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
         .dashboard {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -190,6 +212,7 @@
                 <option value="1m">1 Monat</option>
                 <option value="3m" selected>3 Monate</option>
             </select>
+            <button class="refresh-btn" id="refreshBtn" onclick="refreshData()">🔄 Aktualisieren</button>
         </div>
         <h1>Rohstoff-Dashboard</h1>
         <div class="updated" id="lastUpdate">Wird geladen...</div>
@@ -619,6 +642,40 @@
                     }
                 }
             } catch (e) {}
+        }
+        
+        async function refreshData() {
+            const btn = document.getElementById('refreshBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Lädt...';
+            
+            try {
+                const response = await fetch('../api/refresh', { method: 'POST' });
+                if (response.ok) {
+                    // Warte 2 Sekunden, dann lade Daten neu
+                    setTimeout(() => {
+                        loadData();
+                        btn.textContent = '✅ Fertig!';
+                        setTimeout(() => {
+                            btn.textContent = '🔄 Aktualisieren';
+                            btn.disabled = false;
+                        }, 2000);
+                    }, 2000);
+                } else {
+                    btn.textContent = '❌ Fehler';
+                    setTimeout(() => {
+                        btn.textContent = '🔄 Aktualisieren';
+                        btn.disabled = false;
+                    }, 2000);
+                }
+            } catch (e) {
+                console.error('Refresh fehlgeschlagen:', e);
+                btn.textContent = '❌ Fehler';
+                setTimeout(() => {
+                    btn.textContent = '🔄 Aktualisieren';
+                    btn.disabled = false;
+                }, 2000);
+            }
         }
         
         loadConfig().then(() => loadData());
