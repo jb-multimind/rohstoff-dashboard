@@ -164,17 +164,16 @@ def fetch_finanzen_net_wheat() -> list:
                 page_text = page.inner_text('body')
                 import re
                 
-                # Suche nach Zahlen in der Nähe von Preis-Keywords
-                # Keywords die auf den echten Preis hinweisen
+                # Suche nach Zahlen in der Nähe von SPEZIFISCHEN Preis-Keywords
+                # Vermeide generische Keywords wie "EUR" (zu viele false positives)
                 price_keywords = [
-                    r'Kurs',
-                    r'Aktuell',
-                    r'Stand',
-                    r'EUR',
-                    r'€',
-                    r'Preis',
-                    r'Snapshot',
-                    r'Realtime',
+                    r'\bKurs\b',           # Haupt-Indikator
+                    r'\bAktuell\b',
+                    r'\bSnapshot\b',
+                    r'\bRealtime\b',
+                    r'\bLetzter\s+Kurs\b',
+                    r'\bBid\b',
+                    r'\bAsk\b',
                 ]
                 
                 # Teile Text in Zeilen und suche in benachbarten Zeilen
