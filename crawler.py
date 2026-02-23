@@ -29,6 +29,9 @@ import ssl
 DATA_DIR = Path(__file__).parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
+SCREENSHOT_DIR = Path(__file__).parent / "data" / "screenshots"
+SCREENSHOT_DIR.mkdir(exist_ok=True)
+
 COMMODITIES = {
     "weizen": {
         "name": "Weizen",
@@ -99,12 +102,102 @@ def get_eur_usd_rate() -> float:
         return 1.08
 
 
+def load_config() -> dict:
+    """Lade config.json"""
+    config_path = Path(__file__).parent / "config.json"
+    try:
+        with open(config_path, 'r') as f:
+            return json.load(f)
+    except:
+        return {}
+
+
+def extract_price_with_gemini(screenshot_path: str) -> float:
+    """
+    Analysiert Screenshot mit Google Gemini Vision
+    
+    Args:
+        screenshot_path: Pfad zum Screenshot
+        
+    Returns:
+        float: Extrahierter Preis oder None bei Fehler
+    """
+    config = load_config()
+    gemini_config = config.get('gemini', {})
+    
+    if not gemini_config.get('enabled', False):
+        print("  Gemini deaktiviert in config.json")
+        return None
+    
+    api_key = gemini_config.get('api_key', '').strip()
+    if not api_key:
+        print("  Kein Gemini API Key in config.json")
+        return None
+    
+    try:
+        import google.generativeai as genai
+        from PIL import Image
+        
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(gemini_config.get('model', 'gemini-1.5-flash'))
+        
+        print(f"  Analysiere Screenshot mit Gemini...")
+        
+        # Screenshot öffnen
+        img = Image.open(screenshot_path)
+        
+        # Prompt für Gemini
+        prompt = """Extract the current wheat price (Weizen) from this financial website screenshot.
+        
+Look for:
+- The main price displayed prominently (usually the largest number)
+- It should be in EUR/Tonne format
+- Typically between 100 and 500
+- Look for labels like "Kurs", "Aktuell", "Snapshot", "Realtime"
+
+Return ONLY the numeric price value (e.g., "226.83"), nothing else.
+If you cannot find the price, return "ERROR"."""
+
+        response = model.generate_content([prompt, img])
+        result = response.text.strip()
+        
+        print(f"  Gemini Antwort: {result}")
+        
+        # Parse Antwort
+        if result == "ERROR":
+            print("  Gemini konnte Preis nicht finden")
+            return None
+        
+        # Extrahiere Zahl
+        numbers = re.findall(r'\d+\.?\d*', result.replace(',', '.'))
+        if numbers:
+            price = float(numbers[0])
+            
+            # Sanity check
+            if 100 <= price <= 500:
+                print(f"  ✓ Gemini Preis: {price} EUR/t")
+                return price
+            else:
+                print(f"  ✗ Gemini Preis außerhalb Bereich: {price}")
+                return None
+        
+        print(f"  ✗ Konnte Zahl nicht aus Antwort extrahieren")
+        return None
+        
+    except ImportError:
+        print("  google-generativeai nicht installiert")
+        return None
+    except Exception as e:
+        print(f"  Gemini Fehler: {e}")
+        return None
+
+
 # =============================================================================
 # MATIF WEIZEN - BROWSER SCRAPING
 # =============================================================================
 
 def fetch_finanzen_net_wheat() -> list:
-    """Holt Matif Weizen via Playwright Browser-Scraping mit Fallback-Selectors"""
+    """Holt Matif Weizen via Playwright Browser-Scraping mit Gemini Vision"""
     print("  Browser-Scraping finanzen.net...")
     
     try:
@@ -122,23 +215,35 @@ def fetch_finanzen_net_wheat() -> list:
             # Warte länger - Preis wird oft via JavaScript nachgeladen
             page.wait_for_timeout(5000)
             
-            # Versuche mehrere Selectors (finanzen.net ändert oft die Struktur)
-            selectors = [
-                '.snapshot-value-instrument',  # Alter Selector
-                '[data-field="price"]',         # Data-Attribute
-                '.snapshot__value',             # Alternative Klasse
-                '[class*="snapshot"][class*="value"]',  # Wildcard
-                '[class*="price-value"]',       # Preis-Value
-                'span[class*="snapshot"]',      # Span mit snapshot
-                '.instrument-price',            # Instrument-Preis
-                '[data-test="price"]',          # Test-Attribut
-            ]
+            # Screenshot machen für Gemini
+            screenshot_path = SCREENSHOT_DIR / f"weizen_{datetime.now().strftime('%Y-%m-%d')}.png"
+            page.screenshot(path=str(screenshot_path), full_page=False)
+            print(f"  Screenshot gespeichert: {screenshot_path}")
             
-            current_price = None
-            price_text = None
+            # Versuche zuerst Gemini
+            current_price = extract_price_with_gemini(str(screenshot_path))
             
-            # Probiere alle Selectors durch
-            for selector in selectors:
+            if current_price:
+                print(f"  ✓ Gemini erfolgreich: {current_price} EUR/t")
+            else:
+                print("  Gemini fehlgeschlagen - Fallback auf Selector-Methode...")
+                
+                # Versuche mehrere Selectors (finanzen.net ändert oft die Struktur)
+                selectors = [
+                    '.snapshot-value-instrument',  # Alter Selector
+                    '[data-field="price"]',         # Data-Attribute
+                    '.snapshot__value',             # Alternative Klasse
+                    '[class*="snapshot"][class*="value"]',  # Wildcard
+                    '[class*="price-value"]',       # Preis-Value
+                    'span[class*="snapshot"]',      # Span mit snapshot
+                    '.instrument-price',            # Instrument-Preis
+                    '[data-test="price"]',          # Test-Attribut
+                ]
+                
+                price_text = None
+                
+                # Probiere alle Selectors durch
+                for selector in selectors:
                 try:
                     element = page.locator(selector).first
                     price_text = element.text_content(timeout=2000)
@@ -157,65 +262,65 @@ def fetch_finanzen_net_wheat() -> list:
                                 break
                 except:
                     continue
-            
-            # Fallback: Durchsuche Seite nach Zahlen MIT KONTEXT
-            if not current_price:
-                print("  Kein Selector funktioniert - suche nach Zahlen mit Kontext...")
-                page_text = page.inner_text('body')
-                import re
                 
-                # Suche nach Zahlen in der Nähe von SPEZIFISCHEN Preis-Keywords
-                # Vermeide generische Keywords wie "EUR" (zu viele false positives)
-                price_keywords = [
-                    r'\bKurs\b',           # Haupt-Indikator
-                    r'\bAktuell\b',
-                    r'\bSnapshot\b',
-                    r'\bRealtime\b',
-                    r'\bLetzter\s+Kurs\b',
-                    r'\bBid\b',
-                    r'\bAsk\b',
-                ]
-                
-                # Teile Text in Zeilen und suche in benachbarten Zeilen
-                lines = page_text.split('\n')
-                candidates = []
-                
-                for i, line in enumerate(lines):
-                    # Prüfe ob Zeile ein Keyword enthält oder benachbarte Zeilen
-                    context_window = '\n'.join(lines[max(0, i-2):min(len(lines), i+3)])
-                    has_keyword = any(re.search(kw, context_window, re.IGNORECASE) for kw in price_keywords)
+                # Fallback: Durchsuche Seite nach Zahlen MIT KONTEXT
+                if not current_price:
+                    print("  Kein Selector funktioniert - suche nach Zahlen mit Kontext...")
+                    page_text = page.inner_text('body')
+                    import re
                     
-                    if has_keyword:
-                        # Suche Zahlen in dieser Zeile
-                        # Format: 197,00 oder 197.00 oder 197
-                        number_matches = re.findall(r'(\d{3})[,.]?(\d{0,2})', line)
-                        for match in number_matches:
-                            try:
-                                if match[1]:
-                                    price = float(f"{match[0]}.{match[1]}")
-                                else:
-                                    price = float(match[0])
-                                
-                                if 100 <= price <= 500:
-                                    candidates.append({
-                                        'price': price,
-                                        'line': line.strip(),
-                                        'context': context_window[:100]
-                                    })
-                            except:
-                                pass
-                
-                # Nimm den ERSTEN Kandidaten (meist der prominenteste Preis)
-                if candidates:
-                    current_price = candidates[0]['price']
-                    print(f"  Gefunden mit Kontext-Suche: {current_price}")
-                    print(f"  Zeile: {candidates[0]['line'][:80]}")
+                    # Suche nach Zahlen in der Nähe von SPEZIFISCHEN Preis-Keywords
+                    # Vermeide generische Keywords wie "EUR" (zu viele false positives)
+                    price_keywords = [
+                        r'\bKurs\b',           # Haupt-Indikator
+                        r'\bAktuell\b',
+                        r'\bSnapshot\b',
+                        r'\bRealtime\b',
+                        r'\bLetzter\s+Kurs\b',
+                        r'\bBid\b',
+                        r'\bAsk\b',
+                    ]
                     
-                    # Falls mehrere Kandidaten: zeige sie zur Info
-                    if len(candidates) > 1:
-                        print(f"  Weitere Kandidaten gefunden: {[c['price'] for c in candidates[1:4]]}")
-                else:
-                    print("  Keine Zahlen mit Preis-Kontext gefunden!")
+                    # Teile Text in Zeilen und suche in benachbarten Zeilen
+                    lines = page_text.split('\n')
+                    candidates = []
+                    
+                    for i, line in enumerate(lines):
+                        # Prüfe ob Zeile ein Keyword enthält oder benachbarte Zeilen
+                        context_window = '\n'.join(lines[max(0, i-2):min(len(lines), i+3)])
+                        has_keyword = any(re.search(kw, context_window, re.IGNORECASE) for kw in price_keywords)
+                        
+                        if has_keyword:
+                            # Suche Zahlen in dieser Zeile
+                            # Format: 197,00 oder 197.00 oder 197
+                            number_matches = re.findall(r'(\d{3})[,.]?(\d{0,2})', line)
+                            for match in number_matches:
+                                try:
+                                    if match[1]:
+                                        price = float(f"{match[0]}.{match[1]}")
+                                    else:
+                                        price = float(match[0])
+                                    
+                                    if 100 <= price <= 500:
+                                        candidates.append({
+                                            'price': price,
+                                            'line': line.strip(),
+                                            'context': context_window[:100]
+                                        })
+                                except:
+                                    pass
+                    
+                    # Nimm den ERSTEN Kandidaten (meist der prominenteste Preis)
+                    if candidates:
+                        current_price = candidates[0]['price']
+                        print(f"  Gefunden mit Kontext-Suche: {current_price}")
+                        print(f"  Zeile: {candidates[0]['line'][:80]}")
+                        
+                        # Falls mehrere Kandidaten: zeige sie zur Info
+                        if len(candidates) > 1:
+                            print(f"  Weitere Kandidaten gefunden: {[c['price'] for c in candidates[1:4]]}")
+                    else:
+                        print("  Keine Zahlen mit Preis-Kontext gefunden!")
             
             browser.close()
             

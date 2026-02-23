@@ -18,5 +18,10 @@
     "currencySymbol": "€",
     "unit": "t",
     "refreshIntervalSeconds": 3600
+  },
+  "gemini": {
+    "enabled": true,
+    "api_key": "",
+    "model": "gemini-1.5-flash"
   }
 }

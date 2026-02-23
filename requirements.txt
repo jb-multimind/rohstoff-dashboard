@@ -3,3 +3,7 @@
 
 # Playwright für Weizen-Scraping (finanzen.net)
 playwright>=1.40.0
+
+# Google Gemini Vision für Screenshot-Analyse
+google-generativeai>=0.3.0
+Pillow>=10.0.0

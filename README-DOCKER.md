@@ -32,6 +32,36 @@ docker-compose logs -f
 
 Dashboard läuft jetzt auf: **http://localhost:8080/dashboard/**
 
+## 🤖 Google Gemini Vision (Optional)
+
+Das Dashboard kann **Google Gemini Vision** für robustere Preis-Erkennung nutzen:
+
+### Vorteile
+- ✅ **Robuster** gegen HTML-Änderungen
+- ✅ **1500 Anfragen/Tag kostenlos**
+- ✅ **Fallback auf alte Methode** bei Fehler
+
+### Setup
+1. **API Key holen**: https://aistudio.google.com/app/apikey
+2. **Im Dashboard**: Klick auf ⚙️ (Settings)
+3. **API Key eingeben** und speichern
+4. **Crawler neu starten**: `docker-compose restart`
+
+### Funktionsweise
+1. Crawler macht Screenshot von finanzen.net
+2. Screenshot wird an Gemini geschickt
+3. Gemini extrahiert Preis aus Bild
+4. Bei Fehler: Fallback auf alte Selector-Methode
+
+### Test
+```bash
+# Crawler manuell ausführen (im Container)
+docker-compose exec rohstoff-dashboard python3 /app/crawler.py
+
+# Gemini-Logs prüfen
+docker-compose logs | grep Gemini
+```
+
 ## 🛠️ Konfiguration
 
 ### Port ändern
