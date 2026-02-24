@@ -208,30 +208,30 @@ def fetch_finanzen_net_wheat() -> list:
             try:
                 browser = p.chromium.launch(headless=True)
                 page = browser.new_page()
-            
-            # Zur Matif Weizen Seite
-            page.goto('https://www.finanzen.net/rohstoffe/weizenpreis', 
-                     wait_until='networkidle', 
-                     timeout=30000)
-            
-            # Warte länger - Preis wird oft via JavaScript nachgeladen
-            page.wait_for_timeout(5000)
-            
-            # Screenshot machen für Gemini
-            screenshot_path = SCREENSHOT_DIR / f"weizen_{datetime.now().strftime('%Y-%m-%d')}.png"
-            page.screenshot(path=str(screenshot_path), full_page=False)
-            print(f"  Screenshot gespeichert: {screenshot_path}")
-            
-            # Versuche zuerst Gemini
-            current_price = extract_price_with_gemini(str(screenshot_path))
-            
-            if current_price:
-                print(f"  ✓ Gemini erfolgreich: {current_price} EUR/t")
-            else:
-                print("  Gemini fehlgeschlagen - Fallback auf Selector-Methode...")
                 
-                # Versuche mehrere Selectors (finanzen.net ändert oft die Struktur)
-                selectors = [
+                # Zur Matif Weizen Seite
+                page.goto('https://www.finanzen.net/rohstoffe/weizenpreis', 
+                         wait_until='networkidle', 
+                         timeout=30000)
+                
+                # Warte länger - Preis wird oft via JavaScript nachgeladen
+                page.wait_for_timeout(5000)
+                
+                # Screenshot machen für Gemini
+                screenshot_path = SCREENSHOT_DIR / f"weizen_{datetime.now().strftime('%Y-%m-%d')}.png"
+                page.screenshot(path=str(screenshot_path), full_page=False)
+                print(f"  Screenshot gespeichert: {screenshot_path}")
+                
+                # Versuche zuerst Gemini
+                current_price = extract_price_with_gemini(str(screenshot_path))
+                
+                if current_price:
+                    print(f"  ✓ Gemini erfolgreich: {current_price} EUR/t")
+                else:
+                    print("  Gemini fehlgeschlagen - Fallback auf Selector-Methode...")
+                    
+                    # Versuche mehrere Selectors (finanzen.net ändert oft die Struktur)
+                    selectors = [
                     '.snapshot-value-instrument',  # Alter Selector
                     '[data-field="price"]',         # Data-Attribute
                     '.snapshot__value',             # Alternative Klasse
@@ -246,24 +246,24 @@ def fetch_finanzen_net_wheat() -> list:
                 
                 # Probiere alle Selectors durch
                 for selector in selectors:
-                try:
-                    element = page.locator(selector).first
-                    price_text = element.text_content(timeout=2000)
-                    
-                    if price_text:
-                        # Bereinige und parse
-                        cleaned = price_text.strip().replace('.', '').replace(',', '.')
-                        # Entferne alle nicht-numerischen Zeichen außer Punkt
-                        import re
-                        numbers = re.findall(r'\d+\.?\d*', cleaned)
-                        if numbers:
-                            current_price = float(numbers[0])
-                            # Sanity check: Weizen sollte zwischen 100-500 EUR/t sein
-                            if 100 <= current_price <= 500:
-                                print(f"  Gefunden mit Selector '{selector}': {price_text}")
-                                break
-                except:
-                    continue
+                    try:
+                        element = page.locator(selector).first
+                        price_text = element.text_content(timeout=2000)
+                        
+                        if price_text:
+                            # Bereinige und parse
+                            cleaned = price_text.strip().replace('.', '').replace(',', '.')
+                            # Entferne alle nicht-numerischen Zeichen außer Punkt
+                            import re
+                            numbers = re.findall(r'\d+\.?\d*', cleaned)
+                            if numbers:
+                                current_price = float(numbers[0])
+                                # Sanity check: Weizen sollte zwischen 100-500 EUR/t sein
+                                if 100 <= current_price <= 500:
+                                    print(f"  Gefunden mit Selector '{selector}': {price_text}")
+                                    break
+                    except:
+                        continue
                 
                 # Fallback: Durchsuche Seite nach Zahlen MIT KONTEXT
                 if not current_price:
