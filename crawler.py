@@ -36,7 +36,7 @@ COMMODITIES = {
     "weizen": {
         "name": "Weizen",
         "unit": "EUR/t",
-        "source": "finanzen_net"
+        "source": "cbot_wsj"
     },
     "roggen": {
         "name": "Roggen",
@@ -193,12 +193,29 @@ If you cannot find the price, return "ERROR"."""
 
 
 # =============================================================================
-# MATIF WEIZEN - BROWSER SCRAPING
+# CBOT WEIZEN - WSJ SCRAPING
 # =============================================================================
 
-def fetch_finanzen_net_wheat() -> list:
-    """Holt Matif Weizen via Playwright Browser-Scraping mit Gemini Vision"""
-    print("  Browser-Scraping finanzen.net...")
+def fetch_cbot_wheat(eur_usd_rate: float) -> list:
+    """
+    Holt CBOT Weizen Future (Front Month) von WSJ
+    
+    Quelle: https://www.wsj.com/market-data/quotes/futures/W1
+    Preis: USD/bushel
+    
+    Umrechnung:
+    1. USD/bushel × 36,7437 = USD/Tonne
+    2. USD/Tonne ÷ EUR/USD = EUR/Tonne
+    
+    Args:
+        eur_usd_rate: Aktueller EUR/USD Wechselkurs
+        
+    Returns:
+        list: 90-Tage Preis-Historie in EUR/Tonne
+    """
+    print("  Scraping WSJ CBOT Weizen Future...")
+    
+    BUSHEL_TO_TONNE = 36.7437  # Umrechnungsfaktor bushel → Tonne
     
     try:
         from playwright.sync_api import sync_playwright
@@ -209,125 +226,82 @@ def fetch_finanzen_net_wheat() -> list:
                 browser = p.chromium.launch(headless=True)
                 page = browser.new_page()
                 
-                # Zur Matif Weizen Seite
-                page.goto('https://www.finanzen.net/rohstoffe/weizenpreis', 
+                # Zur WSJ CBOT Weizen Seite
+                print("  Öffne WSJ...")
+                page.goto('https://www.wsj.com/market-data/quotes/futures/W1', 
                          wait_until='networkidle', 
                          timeout=30000)
                 
-                # Warte länger - Preis wird oft via JavaScript nachgeladen
-                page.wait_for_timeout(5000)
+                # Warte auf JavaScript
+                page.wait_for_timeout(3000)
                 
-                # Screenshot machen für Gemini
-                screenshot_path = SCREENSHOT_DIR / f"weizen_{datetime.now().strftime('%Y-%m-%d')}.png"
-                page.screenshot(path=str(screenshot_path), full_page=False)
-                print(f"  Screenshot gespeichert: {screenshot_path}")
-                
-                # Versuche zuerst Gemini
-                current_price = extract_price_with_gemini(str(screenshot_path))
-                
-                if current_price:
-                    print(f"  ✓ Gemini erfolgreich: {current_price} EUR/t")
-                else:
-                    print("  Gemini fehlgeschlagen - Fallback auf Selector-Methode...")
-                    
-                    # Versuche mehrere Selectors (finanzen.net ändert oft die Struktur)
-                    selectors = [
-                    '.snapshot-value-instrument',  # Alter Selector
-                    '[data-field="price"]',         # Data-Attribute
-                    '.snapshot__value',             # Alternative Klasse
-                    '[class*="snapshot"][class*="value"]',  # Wildcard
-                    '[class*="price-value"]',       # Preis-Value
-                    'span[class*="snapshot"]',      # Span mit snapshot
-                    '.instrument-price',            # Instrument-Preis
-                    '[data-test="price"]',          # Test-Attribut
+                # Versuche mehrere Selectors für WSJ
+                selectors = [
+                    '[data-symbol="W1"] .last-price',  # Mit data-symbol
+                    '.last-price',                      # Generisch
+                    '[data-test="last-price"]',         # Test-Attribut
+                    '.quote-value',                     # Quote-Value
+                    'span[class*="last"]',              # Wildcard
+                    '[class*="price-value"]',           # Preis-Value
                 ]
                 
-                price_text = None
+                price_usd_bushel = None
                 
-                # Probiere alle Selectors durch
+                print("  Suche Preis...")
                 for selector in selectors:
                     try:
                         element = page.locator(selector).first
                         price_text = element.text_content(timeout=2000)
                         
                         if price_text:
-                            # Bereinige und parse
-                            cleaned = price_text.strip().replace('.', '').replace(',', '.')
-                            # Entferne alle nicht-numerischen Zeichen außer Punkt
+                            # Bereinige: Entferne $, Kommas, Leerzeichen
+                            cleaned = price_text.strip().replace('$', '').replace(',', '').replace(' ', '')
+                            
+                            # Parse als Float
                             import re
                             numbers = re.findall(r'\d+\.?\d*', cleaned)
                             if numbers:
-                                current_price = float(numbers[0])
-                                # Sanity check: Weizen sollte zwischen 100-500 EUR/t sein
-                                if 100 <= current_price <= 500:
-                                    print(f"  Gefunden mit Selector '{selector}': {price_text}")
+                                price = float(numbers[0])
+                                # Sanity check: CBOT Weizen zwischen $3-$15/bushel
+                                if 3.0 <= price <= 15.0:
+                                    price_usd_bushel = price
+                                    print(f"  ✓ Gefunden: ${price_usd_bushel}/bushel (Selector: {selector})")
                                     break
                     except:
                         continue
                 
-                # Fallback: Durchsuche Seite nach Zahlen MIT KONTEXT
-                if not current_price:
-                    print("  Kein Selector funktioniert - suche nach Zahlen mit Kontext...")
+                # Fallback: Text-Search
+                if not price_usd_bushel:
+                    print("  Kein Selector - suche im Text...")
                     page_text = page.inner_text('body')
+                    
+                    # Suche nach $X.XX Pattern
                     import re
+                    matches = re.findall(r'\$?(\d+\.\d{2,4})', page_text)
                     
-                    # Suche nach Zahlen in der Nähe von SPEZIFISCHEN Preis-Keywords
-                    # Vermeide generische Keywords wie "EUR" (zu viele false positives)
-                    price_keywords = [
-                        r'\bKurs\b',           # Haupt-Indikator
-                        r'\bAktuell\b',
-                        r'\bSnapshot\b',
-                        r'\bRealtime\b',
-                        r'\bLetzter\s+Kurs\b',
-                        r'\bBid\b',
-                        r'\bAsk\b',
-                    ]
-                    
-                    # Teile Text in Zeilen und suche in benachbarten Zeilen
-                    lines = page_text.split('\n')
-                    candidates = []
-                    
-                    for i, line in enumerate(lines):
-                        # Prüfe ob Zeile ein Keyword enthält oder benachbarte Zeilen
-                        context_window = '\n'.join(lines[max(0, i-2):min(len(lines), i+3)])
-                        has_keyword = any(re.search(kw, context_window, re.IGNORECASE) for kw in price_keywords)
-                        
-                        if has_keyword:
-                            # Suche Zahlen in dieser Zeile
-                            # Format: 197,00 oder 197.00 oder 197
-                            number_matches = re.findall(r'(\d{3})[,.]?(\d{0,2})', line)
-                            for match in number_matches:
-                                try:
-                                    if match[1]:
-                                        price = float(f"{match[0]}.{match[1]}")
-                                    else:
-                                        price = float(match[0])
-                                    
-                                    if 100 <= price <= 500:
-                                        candidates.append({
-                                            'price': price,
-                                            'line': line.strip(),
-                                            'context': context_window[:100]
-                                        })
-                                except:
-                                    pass
-                    
-                    # Nimm den ERSTEN Kandidaten (meist der prominenteste Preis)
-                    if candidates:
-                        current_price = candidates[0]['price']
-                        print(f"  Gefunden mit Kontext-Suche: {current_price}")
-                        print(f"  Zeile: {candidates[0]['line'][:80]}")
-                        
-                        # Falls mehrere Kandidaten: zeige sie zur Info
-                        if len(candidates) > 1:
-                            print(f"  Weitere Kandidaten gefunden: {[c['price'] for c in candidates[1:4]]}")
-                    else:
-                        print("  Keine Zahlen mit Preis-Kontext gefunden!")
+                    for match in matches:
+                        try:
+                            price = float(match)
+                            if 3.0 <= price <= 15.0:
+                                price_usd_bushel = price
+                                print(f"  ✓ Gefunden im Text: ${price_usd_bushel}/bushel")
+                                break
+                        except:
+                            pass
                 
-                if not current_price:
-                    raise Exception("Kein passender Preis gefunden (alle Methoden fehlgeschlagen)")
+                if not price_usd_bushel:
+                    raise Exception("Kein CBOT Weizen-Preis gefunden")
                 
-                print(f"  Matif Weizen: {current_price} EUR/t")
+                # Umrechnung USD/bushel → EUR/t
+                price_usd_tonne = price_usd_bushel * BUSHEL_TO_TONNE
+                price_eur_tonne = price_usd_tonne / eur_usd_rate
+                current_price = round(price_eur_tonne, 2)
+                
+                print(f"  Umrechnung:")
+                print(f"    ${price_usd_bushel:.2f}/bushel")
+                print(f"    × {BUSHEL_TO_TONNE} = ${price_usd_tonne:.2f}/t")
+                print(f"    ÷ {eur_usd_rate:.4f} = €{current_price:.2f}/t")
+                print(f"  ✓ CBOT Weizen: €{current_price}/t")
                 
                 # Generiere 90-Tage-Historie mit kleinen Variationen
                 prices = []
@@ -720,8 +694,8 @@ def main():
     for key, meta in COMMODITIES.items():
         print(f"{meta['name']}...")
         
-        if meta.get("source") == "finanzen_net":
-            prices = fetch_finanzen_net_wheat()
+        if meta.get("source") == "cbot_wsj":
+            prices = fetch_cbot_wheat(eur_rate)
         
         elif meta.get("source") == "weizen_proxy":
             prices = fetch_roggen_from_weizen()
