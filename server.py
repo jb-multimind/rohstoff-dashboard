@@ -83,7 +83,8 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                     'enabled': gemini_config.get('enabled', False),
                     'has_key': has_key,
                     'model': gemini_config.get('model', 'gemini-1.5-flash')
-                }
+                },
+                'defaultPeriod': config.get('defaultPeriod', '1m')
             })
             self.wfile.write(response.encode())
         except Exception as e:
@@ -120,6 +121,10 @@ class DashboardHandler(SimpleHTTPRequestHandler):
                 
                 if 'model' in data['gemini']:
                     config['gemini']['model'] = data['gemini']['model']
+            
+            # Update defaultPeriod
+            if 'defaultPeriod' in data:
+                config['defaultPeriod'] = data['defaultPeriod']
             
             # Speichere Config
             with open('/app/config.json', 'w') as f:

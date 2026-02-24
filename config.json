@@ -1,5 +1,5 @@
 {
-  "defaultPeriod": "3m",
+  "defaultPeriod": "1m",
   "periods": {
     "1w": { "label": "1 Woche", "days": 7 },
     "1m": { "label": "1 Monat", "days": 30 },
