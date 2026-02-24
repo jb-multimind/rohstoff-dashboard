@@ -34,9 +34,10 @@ SCREENSHOT_DIR.mkdir(exist_ok=True)
 
 COMMODITIES = {
     "weizen": {
+        "symbol": "ZW=F",
         "name": "Weizen",
         "unit": "EUR/t",
-        "source": "cbot_wsj"
+        "convert_cents_bushel": True  # Yahoo gibt Cents/bushel, umrechnen zu EUR/t
     },
     "roggen": {
         "name": "Roggen",
@@ -423,17 +424,30 @@ def fetch_yahoo_history(symbol: str) -> list:
         return []
 
 
-def convert_prices(prices: list, eur_rate: float, convert_lb: bool = False, convert_mt: bool = False) -> list:
+def convert_prices(prices: list, eur_rate: float, convert_lb: bool = False, convert_mt: bool = False, convert_cents_bushel: bool = False) -> list:
     result = []
+    BUSHEL_TO_TONNE = 36.7437  # bushel/Tonne Umrechnungsfaktor
+    
     for p in prices:
-        price = p["price"] / eur_rate
+        price = p["price"]
         
-        if convert_lb:
+        if convert_cents_bushel:
+            # Cents/bushel → EUR/Tonne
+            # 1. Cents → Dollar
+            price = price / 100
+            # 2. USD/bushel → USD/Tonne
+            price = price * BUSHEL_TO_TONNE
+            # 3. USD → EUR
+            price = price / eur_rate
+        elif convert_lb:
             # USD/lb → EUR/Tonne
-            price = price / 0.000453592
+            price = (price / eur_rate) / 0.000453592
         elif convert_mt:
             # USD/MT → EUR/MT (nur Währung)
-            pass
+            price = price / eur_rate
+        else:
+            # Nur Währung
+            price = price / eur_rate
         
         result.append({"date": p["date"], "price": round(price, 2)})
     return result
@@ -694,10 +708,7 @@ def main():
     for key, meta in COMMODITIES.items():
         print(f"{meta['name']}...")
         
-        if meta.get("source") == "cbot_wsj":
-            prices = fetch_cbot_wheat(eur_rate)
-        
-        elif meta.get("source") == "weizen_proxy":
+        if meta.get("source") == "weizen_proxy":
             prices = fetch_roggen_from_weizen()
         
         elif meta.get("symbol"):
@@ -707,7 +718,8 @@ def main():
                     prices, 
                     eur_rate, 
                     meta.get("convert_lb", False),
-                    meta.get("convert_mt", False)
+                    meta.get("convert_mt", False),
+                    meta.get("convert_cents_bushel", False)
                 )
         
         elif meta.get("source") == "clal_butter":
