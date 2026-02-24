@@ -380,7 +380,7 @@
         
         /* Musswessels-Farben für die Rohstoffe */
         .card.weizen { border-left: 3px solid #b30019; }
-        .card.roggen { border-left: 3px solid #9a0015; }
+        .card.heizoel { border-left: 3px solid #ff6b00; }
         .card.zucker { border-left: 3px solid #d4001f; }
         .card.kaffee { border-left: 3px solid #b30019; }
         .card.kakao { border-left: 3px solid #c8001c; }
@@ -442,30 +442,30 @@
             </div>
         </div>
         
-        <div class="card roggen">
+        <div class="card heizoel">
             <div class="card-header">
-                <div class="card-title">Roggen<span class="source"><a href="https://www.finanzen.net/rohstoffe/weizenpreis" target="_blank">Weizen-Basis</a></span></div>
+                <div class="card-title">Heizöl<span class="source"><a href="https://www.esyoil.com" target="_blank">esyoil.com</a></span></div>
                 <div class="card-price">
-                    <div class="current" id="roggen-price">--</div>
-                    <div class="unit" id="roggen-unit">EUR/t</div>
-                    <div class="change" id="roggen-change">--</div>
+                    <div class="current" id="heizoel-price">--</div>
+                    <div class="unit" id="heizoel-unit">EUR/1000L</div>
+                    <div class="change" id="heizoel-change">--</div>
                 </div>
             </div>
             <div class="chart-container">
-                <canvas id="roggen-chart"></canvas>
+                <canvas id="heizoel-chart"></canvas>
             </div>
             <div class="stats-row">
                 <div class="stat-item">
                     <div class="stat-label">Min</div>
-                    <div class="stat-value min" id="roggen-min">--</div>
+                    <div class="stat-value min" id="heizoel-min">--</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-label">Ø</div>
-                    <div class="stat-value avg" id="roggen-avg">--</div>
+                    <div class="stat-value avg" id="heizoel-avg">--</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-label">Max</div>
-                    <div class="stat-value max" id="roggen-max">--</div>
+                    <div class="stat-value max" id="heizoel-max">--</div>
                 </div>
             </div>
         </div>
@@ -790,7 +790,7 @@
         }
         
         async function loadData() {
-            const commodities = ['weizen', 'roggen', 'zucker', 'kaffee', 'kakao', 'butter', 'kaese', 'milch'];
+            const commodities = ['weizen', 'heizoel', 'zucker', 'kaffee', 'kakao', 'butter', 'kaese', 'milch'];
             let latestUpdate = null;
             
             for (const c of commodities) {
@@ -818,7 +818,7 @@
             }
         }
         
-        ['weizen', 'roggen', 'zucker', 'kaffee', 'kakao', 'butter', 'kaese', 'milch'].forEach(c => {
+        ['weizen', 'heizoel', 'zucker', 'kaffee', 'kakao', 'butter', 'kaese', 'milch'].forEach(c => {
             charts[c] = createChart(`${c}-chart`, c);
         });
         
