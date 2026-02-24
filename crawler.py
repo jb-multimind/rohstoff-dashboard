@@ -204,8 +204,10 @@ def fetch_finanzen_net_wheat() -> list:
         from playwright.sync_api import sync_playwright
         
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
+            browser = None
+            try:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page()
             
             # Zur Matif Weizen Seite
             page.goto('https://www.finanzen.net/rohstoffe/weizenpreis', 
@@ -321,27 +323,33 @@ def fetch_finanzen_net_wheat() -> list:
                             print(f"  Weitere Kandidaten gefunden: {[c['price'] for c in candidates[1:4]]}")
                     else:
                         print("  Keine Zahlen mit Preis-Kontext gefunden!")
-            
-            browser.close()
-            
-            if not current_price:
-                raise Exception("Kein passender Preis gefunden (alle Methoden fehlgeschlagen)")
-            
-            print(f"  Matif Weizen: {current_price} EUR/t")
-            
-            # Generiere 90-Tage-Historie mit kleinen Variationen
-            prices = []
-            for i in range(90, -1, -1):
-                import random
-                date = datetime.now() - timedelta(days=i)
-                variation = random.uniform(-0.03, 0.03)
-                price = current_price * (1 + variation)
-                prices.append({
-                    "date": date.strftime("%Y-%m-%d"),
-                    "price": round(price, 2)
-                })
-            
-            return prices
+                
+                if not current_price:
+                    raise Exception("Kein passender Preis gefunden (alle Methoden fehlgeschlagen)")
+                
+                print(f"  Matif Weizen: {current_price} EUR/t")
+                
+                # Generiere 90-Tage-Historie mit kleinen Variationen
+                prices = []
+                for i in range(90, -1, -1):
+                    import random
+                    date = datetime.now() - timedelta(days=i)
+                    variation = random.uniform(-0.03, 0.03)
+                    price = current_price * (1 + variation)
+                    prices.append({
+                        "date": date.strftime("%Y-%m-%d"),
+                        "price": round(price, 2)
+                    })
+                
+                return prices
+            finally:
+                # WICHTIG: Browser IMMER schließen (verhindert Memory Leaks)
+                if browser:
+                    try:
+                        browser.close()
+                        print("  Browser geschlossen")
+                    except:
+                        pass
             
     except ImportError:
         print("  Playwright nicht installiert - nutze Fallback")
