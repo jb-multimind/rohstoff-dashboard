@@ -280,7 +280,7 @@
             border-radius: 12px;
             padding: 10px 14px;
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(179, 0, 25, 0.3);
+            border: 2px solid rgba(179, 0, 25, 0.3);
             display: flex;
             flex-direction: column;
             min-height: 0;
@@ -401,8 +401,8 @@
         <div class="period-select">
             <select id="periodSelect">
                 <option value="1w">1 Woche</option>
-                <option value="1m">1 Monat</option>
-                <option value="3m" selected>3 Monate</option>
+                <option value="1m" selected>1 Monat</option>
+                <option value="3m">3 Monate</option>
                 <option value="6m">6 Monate</option>
                 <option value="1y">1 Jahr</option>
             </select>
@@ -649,7 +649,7 @@
             '1y': { label: '1 Jahr', days: 365 }
         };
         
-        let currentPeriod = '3m';
+        let currentPeriod = '1m';
         let allData = {};
         
         const COLORS = {
